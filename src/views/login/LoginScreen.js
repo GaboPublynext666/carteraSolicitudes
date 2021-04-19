@@ -205,7 +205,7 @@ class LoginScreen extends Component {
     renderCopyright = (classes) => {
         return(
             <Box mt={8}>
-                <CopyrightComponent fontColor = "white"/>
+                <CopyrightScreen fontColor = "white"/>
             </Box>
         );
     }
@@ -229,9 +229,9 @@ class LoginScreen extends Component {
         const { classes } = this.props;
         return(
            <div>
-               {sessionStorage.getItem("businessData") ? 
+               {
                 this.renderLoginScreen(classes)
-               : null}
+               }
            </div>
         );
     }

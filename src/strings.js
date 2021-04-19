@@ -5,7 +5,7 @@ export const Strings = ({
     currentYear: new Date().getFullYear(),
 
     //Images
-    appLogoUrl: "http://localhost/media/app-logo.png",
+    appLogoUrl: "./logo192.png",
     appBannerUrl: "http://localhost/media/app-banner.png",
     appIconUrl: "http://localhost/media/app-icon.png",
 
