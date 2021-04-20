@@ -172,7 +172,8 @@ class CreateBaseScreen extends Component{
             totalData: dataStringLines.length,
         });
 
-        const list = [];
+        let list = [];
+        let listPhoneString = "";
 
         for (let i = 1; i < dataStringLines.length; i++) {
             const row = dataStringLines[i].split(/,(?![^"]*"(?:(?:[^"]*"){2})*[^"]*$)/);
@@ -192,25 +193,12 @@ class CreateBaseScreen extends Component{
                     }
                 }
 
-                await fetch("https://ventasvirtuales.com.ec/api/procedures/getmethods/SearchLeads.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&gestorId=724&cellPhone=" + obj["TELEFONO"] + "&rolGestor=Superior")
-                .then(response => response.json())
-                .then(data => {
-                    if(data.header === "OK"){
-                        if(data.count > 0){
-                            obj["action"] = 0;
-                            obj["message"] = data.body[0].number_assigned + " se encuentra registrado como leads con el estado " + data.body[0].leadStatus + " y el plan es " + data.body[0].campaign;
-                        }else{
-                            obj["action"] = 1;
-                            obj["message"] = "Datos Válidos";
-                        }
-                    }else{
-                        obj["action"] = 0;
-                        obj["message"] = "Error al consultar en Ventas Virtuales";
-                    }
-                })
-                .catch(error => {obj["message"] = "Se perdió la conexión a internet";});
-        
-                //alert(obj["message"]);
+                if(listPhoneString.length > 0){
+                    listPhoneString = listPhoneString.concat(",");
+                }
+
+                listPhoneString = listPhoneString.concat("'" + obj["TELEFONO"] + "'");
+
                 // remove the blank rows
                 if (Object.values(obj).filter(x => x).length > 0) {
                     list.push(obj);
@@ -224,26 +212,44 @@ class CreateBaseScreen extends Component{
             }
         }
 
-        headers.push("action");
-        headers.push("message");
-    
-        // prepare columns list from headers
-        const columns = headers.map(c => ({
-            name: c,
-            selector: c,
-        }));
-    
         
+        await fetch("https://ventasvirtuales.com.ec/api/procedures/getmethods/SearchLeadList.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&cellPhoneList="+listPhoneString)
+        .then(response => response.json())
+        .then(data => {
+            if(data.header === "OK"){
+                for(let indexList = 0; indexList < list.length; indexList++){
+                    let indexCategoryArray = data.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["TELEFONO"]);
+                    list[indexList]["action"] = 1;
+                    list[indexList]["message"] = "Telefono valido";
 
-        // setData(list);
-        // setColumns(columns);
+                    if(indexCategoryArray >= 0){
+                        list[indexList]["action"] = 0;
+                        list[indexList]["message"] = data.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + data.body[indexCategoryArray].leadStatus + " y campaña " + data.body[indexCategoryArray].campaign;
+                    }
 
-        this.setState({
-            currentAction: "reportDataTable",
-            dataHeaders: columns,
-            dataList: list,
+                }
+
+                headers.push("action");
+                headers.push("message");
+    
+                // prepare columns list from headers
+                const columns = headers.map(c => ({
+                    name: c,
+                    selector: c,
+                }));
+
+                this.setState({
+                    currentAction: "reportDataTable",
+                    dataHeaders: columns,
+                    dataList: list,
+                })
+            }else{
+                swal("error", data.messgae, "error");   
+            }
         })
-
+        .catch(error => {
+            swal("error", "No se pudo conectar al hosting ventasvirtuales.com.ec", "error");
+        });
     }
 
 
