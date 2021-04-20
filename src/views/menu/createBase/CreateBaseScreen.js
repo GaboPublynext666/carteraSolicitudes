@@ -8,6 +8,14 @@ import {
     Button,
     Box,
     CircularProgress,
+    TableRow, 
+    TablePagination, 
+    TableHead, 
+    TableContainer, 
+    TableCell, 
+    TableBody, 
+    Table, 
+    Paper, 
 } from "@material-ui/core";
 import {withStyles} from "@material-ui/core/styles";
 import CloudUploadIcon from '@material-ui/icons/CloudUpload';
@@ -64,6 +72,11 @@ class CreateBaseScreen extends Component{
             totalData: 0,
             succesfulData: 0,
             failedData: 0,
+            dataHeaders: [],
+            dataList: [],
+
+            page: 0,
+            rowsPerPage: 10,
 
             //Cartera Data
             dataBaseName: "",
@@ -91,6 +104,15 @@ class CreateBaseScreen extends Component{
 
         this.processCsvFile();
     }
+
+    onChangePage = (event, newPage) => {
+        this.setState({page: newPage});
+    };
+
+    onChangeRowsPerPage = (event) => {
+        this.setState({rowsPerPage: event.target.value});
+        this.setState({page: 0});
+    };
 
     onSelectFile = (event) => {
         const file = event.target.files[0];
@@ -201,6 +223,9 @@ class CreateBaseScreen extends Component{
                 });
             }
         }
+
+        headers.push("action");
+        headers.push("message");
     
         // prepare columns list from headers
         const columns = headers.map(c => ({
@@ -208,11 +233,15 @@ class CreateBaseScreen extends Component{
             selector: c,
         }));
     
+        
+
         // setData(list);
         // setColumns(columns);
 
         this.setState({
-            currentAction: "reportDataTable"
+            currentAction: "reportDataTable",
+            dataHeaders: columns,
+            dataList: list,
         })
 
     }
@@ -286,9 +315,51 @@ class CreateBaseScreen extends Component{
 
     renderDataTable = (classes) => {
         return(
-            <div>
-                <h1>Data table</h1>
-            </div>
+            <Paper className = {classes.dataTableContainer}>
+                <TableContainer className = {classes.container}>
+                    <Table stickyHeader aria-label = "sticky table">
+                        <TableHead>
+                            <TableRow >
+                                {this.state.dataHeaders.map((header, headerIndex) => (
+                                    <TableCell
+                                        key = {"columnHeader"+headerIndex}
+                                        align = "center"
+                                        style = {{ backgroundColor: "#343a40", color: "white"}}>
+
+                                        {header.name}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        </TableHead>
+
+                        <TableBody>
+                            {this.state.dataList.slice(this.state.page * this.state.rowsPerPage, this.state.page * this.state.rowsPerPage + this.state.rowsPerPage).map((currentProduct, productIndex) => {
+                                return (
+                                    <TableRow hover role = "checkbox" tabIndex = {-1} key = {productIndex}>
+                                        {this.state.dataHeaders.map((header) => {
+                                            const value = currentProduct[header.selector];
+                                            return (
+                                                <TableCell key = {currentProduct["IDENTIFICACION"]+""+productIndex} align = "center">
+                                                    {value}
+                                                </TableCell>
+                                            );
+                                        })}
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+
+                <TablePagination
+                    rowsPerPageOptions = {[10, 25, 100]}
+                    component = "div"
+                    count = {this.state.dataList.length}
+                    rowsPerPage = {this.state.rowsPerPage}
+                    page={this.state.page}
+                    onChangePage={this.onChangePage}
+                    onChangeRowsPerPage={this.onChangeRowsPerPage}/>
+            </Paper>
         );
     }
 
