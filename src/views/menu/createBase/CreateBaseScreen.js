@@ -196,15 +196,15 @@ class CreateBaseScreen extends Component{
                 .then(response => response.json())
                 .then(data => {
                     if(data.header === "OK"){
-                        if(data.size > 0){
-                            obj["action"] = false;
-                            obj["message"] = data.body.number_assigned + " se encuentra registrado como leads con el estado " + data.body.leadStatus + " y el plan es " + data.body.campaign;
+                        if(data.count > 0){
+                            obj["action"] = 0;
+                            obj["message"] = data.body[0].number_assigned + " se encuentra registrado como leads con el estado " + data.body[0].leadStatus + " y el plan es " + data.body[0].campaign;
                         }else{
-                            obj["action"] = true;
+                            obj["action"] = 1;
                             obj["message"] = "Datos Válidos";
                         }
                     }else{
-                        obj["action"] = false;
+                        obj["action"] = 0;
                         obj["message"] = "Error al consultar en Ventas Virtuales";
                     }
                 })
