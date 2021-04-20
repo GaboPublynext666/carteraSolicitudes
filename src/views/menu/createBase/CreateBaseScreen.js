@@ -8,6 +8,14 @@ import {
     Button,
     Box,
     CircularProgress,
+    TableRow, 
+    TablePagination, 
+    TableHead, 
+    TableContainer, 
+    TableCell, 
+    TableBody, 
+    Table, 
+    Paper, 
 } from "@material-ui/core";
 import {withStyles} from "@material-ui/core/styles";
 import CloudUploadIcon from '@material-ui/icons/CloudUpload';
@@ -64,6 +72,11 @@ class CreateBaseScreen extends Component{
             totalData: 0,
             succesfulData: 0,
             failedData: 0,
+            dataHeaders: [],
+            dataList: [],
+
+            page: 0,
+            rowsPerPage: 10,
 
             //Cartera Data
             dataBaseName: "",
@@ -91,6 +104,15 @@ class CreateBaseScreen extends Component{
 
         this.processCsvFile();
     }
+
+    onChangePage = (event, newPage) => {
+        this.setState({page: newPage});
+    };
+
+    onChangeRowsPerPage = (event) => {
+        this.setState({rowsPerPage: event.target.value});
+        this.setState({page: 0});
+    };
 
     onSelectFile = (event) => {
         const file = event.target.files[0];
@@ -123,7 +145,7 @@ class CreateBaseScreen extends Component{
         reader.readAsBinaryString(file);
     }
 
-    analizeCsvContent = (dataString) => {
+    analizeCsvContent = async(dataString) => {
         const dataStringLines = dataString.split(/\r\n|\n/);
         const headers = dataStringLines[0].split(/,(?![^"]*"(?:(?:[^"]*"){2})*[^"]*$)/);
 
@@ -154,6 +176,7 @@ class CreateBaseScreen extends Component{
 
         for (let i = 1; i < dataStringLines.length; i++) {
             const row = dataStringLines[i].split(/,(?![^"]*"(?:(?:[^"]*"){2})*[^"]*$)/);
+            
             if (headers && row.length === headers.length) {
                 const obj = {};
                 for (let j = 0; j < headers.length; j++) {
@@ -168,17 +191,41 @@ class CreateBaseScreen extends Component{
                         obj[headers[j]] = d;
                     }
                 }
+
+                await fetch("https://ventasvirtuales.com.ec/api/procedures/getmethods/SearchLeads.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&gestorId=724&cellPhone=" + obj["TELEFONO"] + "&rolGestor=Superior")
+                .then(response => response.json())
+                .then(data => {
+                    if(data.header === "OK"){
+                        if(data.count > 0){
+                            obj["action"] = 0;
+                            obj["message"] = data.body[0].number_assigned + " se encuentra registrado como leads con el estado " + data.body[0].leadStatus + " y el plan es " + data.body[0].campaign;
+                        }else{
+                            obj["action"] = 1;
+                            obj["message"] = "Datos Válidos";
+                        }
+                    }else{
+                        obj["action"] = 0;
+                        obj["message"] = "Error al consultar en Ventas Virtuales";
+                    }
+                })
+                .catch(error => {obj["message"] = "Se perdió la conexión a internet";});
         
+                //alert(obj["message"]);
                 // remove the blank rows
                 if (Object.values(obj).filter(x => x).length > 0) {
                     list.push(obj);
                 }
 
+                let currentProgress = ((100 * (parseFloat(i)))/parseFloat(dataStringLines.length - 1));
+                console.log("current: " + i + ", total: " + dataStringLines.length + ", %: " + currentProgress); 
                 this.setState({
-                    progressValue: parseInt((100 * i)/dataStringLines.length),
+                    progressValue: currentProgress,
                 });
             }
         }
+
+        headers.push("action");
+        headers.push("message");
     
         // prepare columns list from headers
         const columns = headers.map(c => ({
@@ -186,11 +233,15 @@ class CreateBaseScreen extends Component{
             selector: c,
         }));
     
+        
+
         // setData(list);
         // setColumns(columns);
 
         this.setState({
-            currentAction: "reportDataTable"
+            currentAction: "reportDataTable",
+            dataHeaders: columns,
+            dataList: list,
         })
 
     }
@@ -264,9 +315,51 @@ class CreateBaseScreen extends Component{
 
     renderDataTable = (classes) => {
         return(
-            <div>
-                <h1>Data table</h1>
-            </div>
+            <Paper className = {classes.dataTableContainer}>
+                <TableContainer className = {classes.container}>
+                    <Table stickyHeader aria-label = "sticky table">
+                        <TableHead>
+                            <TableRow >
+                                {this.state.dataHeaders.map((header, headerIndex) => (
+                                    <TableCell
+                                        key = {"columnHeader"+headerIndex}
+                                        align = "center"
+                                        style = {{ backgroundColor: "#343a40", color: "white"}}>
+
+                                        {header.name}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        </TableHead>
+
+                        <TableBody>
+                            {this.state.dataList.slice(this.state.page * this.state.rowsPerPage, this.state.page * this.state.rowsPerPage + this.state.rowsPerPage).map((currentProduct, productIndex) => {
+                                return (
+                                    <TableRow hover role = "checkbox" tabIndex = {-1} key = {productIndex}>
+                                        {this.state.dataHeaders.map((header) => {
+                                            const value = currentProduct[header.selector];
+                                            return (
+                                                <TableCell key = {currentProduct["IDENTIFICACION"]+""+productIndex} align = "center">
+                                                    {value}
+                                                </TableCell>
+                                            );
+                                        })}
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+
+                <TablePagination
+                    rowsPerPageOptions = {[10, 25, 100]}
+                    component = "div"
+                    count = {this.state.dataList.length}
+                    rowsPerPage = {this.state.rowsPerPage}
+                    page={this.state.page}
+                    onChangePage={this.onChangePage}
+                    onChangeRowsPerPage={this.onChangeRowsPerPage}/>
+            </Paper>
         );
     }
 
