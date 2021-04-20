@@ -123,7 +123,7 @@ class CreateBaseScreen extends Component{
         reader.readAsBinaryString(file);
     }
 
-    analizeCsvContent = (dataString) => {
+    analizeCsvContent = async(dataString) => {
         const dataStringLines = dataString.split(/\r\n|\n/);
         const headers = dataStringLines[0].split(/,(?![^"]*"(?:(?:[^"]*"){2})*[^"]*$)/);
 
@@ -154,6 +154,7 @@ class CreateBaseScreen extends Component{
 
         for (let i = 1; i < dataStringLines.length; i++) {
             const row = dataStringLines[i].split(/,(?![^"]*"(?:(?:[^"]*"){2})*[^"]*$)/);
+            
             if (headers && row.length === headers.length) {
                 const obj = {};
                 for (let j = 0; j < headers.length; j++) {
@@ -168,14 +169,35 @@ class CreateBaseScreen extends Component{
                         obj[headers[j]] = d;
                     }
                 }
+
+                await fetch("https://ventasvirtuales.com.ec/api/procedures/getmethods/SearchLeads.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&gestorId=724&cellPhone=" + obj["TELEFONO"] + "&rolGestor=Superior")
+                .then(response => response.json())
+                .then(data => {
+                    if(data.header === "OK"){
+                        if(data.size > 0){
+                            obj["action"] = false;
+                            obj["message"] = data.body.number_assigned + " se encuentra registrado como leads con el estado " + data.body.leadStatus + " y el plan es " + data.body.campaign;
+                        }else{
+                            obj["action"] = true;
+                            obj["message"] = "Datos Válidos";
+                        }
+                    }else{
+                        obj["action"] = false;
+                        obj["message"] = "Error al consultar en Ventas Virtuales";
+                    }
+                })
+                .catch(error => {obj["message"] = "Se perdió la conexión a internet";});
         
+                //alert(obj["message"]);
                 // remove the blank rows
                 if (Object.values(obj).filter(x => x).length > 0) {
                     list.push(obj);
                 }
 
+                let currentProgress = ((100 * (parseFloat(i)))/parseFloat(dataStringLines.length - 1));
+                console.log("current: " + i + ", total: " + dataStringLines.length + ", %: " + currentProgress); 
                 this.setState({
-                    progressValue: parseInt((100 * i)/dataStringLines.length),
+                    progressValue: currentProgress,
                 });
             }
         }
