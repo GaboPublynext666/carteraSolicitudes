@@ -33,8 +33,22 @@ import {CreateBaseStyles} from "./CreateBaseStyle";
 //Strings
 import {CreateBaseStrings} from "./CreateBaseStrings";
 
+//Api Rest
+import {ApiRest} from "../../../apiRest/ApiRest";
+import {
+    postCreateCampaign,
+    postInformationIntoCampaign
+} from "../../../apiRest/ApiMethods";
+
 //Mocks
 import {DataBaseItems} from "../../../mocks/DataBaseItems";
+
+//Excel
+import ReactExport from "react-export-excel";
+
+const ExcelFile = ReactExport.ExcelFile;
+const ExcelSheet = ReactExport.ExcelFile.ExcelSheet;
+const ExcelColumn = ReactExport.ExcelFile.ExcelColumn;
 
 function CircularProgressWithLabel(props) {
     return (
@@ -87,8 +101,13 @@ class CreateBaseScreen extends Component{
     }
 
     onCreateDataBaseClick = () => {
-        if(this.state.dataBaseName.length === 0){
+        if(this.state.dataBaseName.trim().length === 0){
             swal("Ingrese nombre de Cartera.", {icon: "error"});
+            return;
+        }
+
+        if(this.state.dataBaseName.includes(" ")){
+            swal("Nombre de Cartera no debe contener espacios en blanco.", {icon: "error"});
             return;
         }
 
@@ -203,48 +222,88 @@ class CreateBaseScreen extends Component{
                 if (Object.values(obj).filter(x => x).length > 0) {
                     list.push(obj);
                 }
-
-                let currentProgress = ((100 * (parseFloat(i)))/parseFloat(dataStringLines.length - 1));
-                console.log("current: " + i + ", total: " + dataStringLines.length + ", %: " + currentProgress); 
-                this.setState({
-                    progressValue: currentProgress,
-                });
             }
         }
 
         
         await fetch("https://ventasvirtuales.com.ec/api/procedures/getmethods/SearchLeadList.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&cellPhoneList="+listPhoneString)
         .then(response => response.json())
-        .then(data => {
-            if(data.header === "OK"){
-                for(let indexList = 0; indexList < list.length; indexList++){
-                    let indexCategoryArray = data.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["TELEFONO"]);
-                    list[indexList]["action"] = 1;
-                    list[indexList]["message"] = "Telefono valido";
+        .then(dataPhoneList => {
+            if(dataPhoneList.header === "OK"){
+                const requestOptions = {
+                    token: ApiRest.apiToken,
+                    campaignName: this.state.dataBaseName,
+                    description: this.state.dataBaseDescription,
+                    createdBy: 1
+                };
+                postCreateCampaign(requestOptions).then(async response => {
+                    const dataCampaign = await response.json();
+                    if(dataCampaign.header === "OK" && dataCampaign.size === 1){
+                        for(let indexList = 0; indexList < list.length; indexList++){
+                            let indexCategoryArray = dataPhoneList.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["TELEFONO"]);
+                            list[indexList]["action"] = 1;
+                            list[indexList]["message"] = "Telefono valido";
+        
+                            if(indexCategoryArray >= 0){
+                                list[indexList]["action"] = 0;
+                                list[indexList]["message"] = dataPhoneList.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + dataPhoneList.body[indexCategoryArray].leadStatus + " y campaña " + dataPhoneList.body[indexCategoryArray].campaign;
+                            }else{
+                                const requestData = {
+                                    token: ApiRest.apiToken,
+                                    campaignName: "camp_" + this.state.dataBaseName, 
+                                    clientName: list[indexList]["NOMBRE"], 
+                                    clientPhone: list[indexList]["TELEFONO"], 
+                                    clientIdentification: list[indexList]["IDENTIFICACION"], 
+                                    clientCity: list[indexList]["CIUDAD"], 
+                                    clientPlan: list[indexList]["PLAN"], 
+                                    clientCreator: 1
+                                };
+                                postInformationIntoCampaign(requestData).then(async response => {
+                                    const data = await response.json();
+                                    if(data.header === "OK" && data.size === 1){
+                                        list[indexList]["action"] = 1;
+                                        list[indexList]["message"] = "Información Ingresada";
+                                    }else{
+                                        list[indexList]["action"] = 0;
+                                        list[indexList]["message"] = "No se pudo Ingresar el recurso";
+                                    }
+                                }).catch(error => {
+                                    list[indexList]["action"] = 0;
+                                    list[indexList]["message"] = "Error al acceder al recurso remoto";
+                                });
+                            }
 
-                    if(indexCategoryArray >= 0){
-                        list[indexList]["action"] = 0;
-                        list[indexList]["message"] = data.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + data.body[indexCategoryArray].leadStatus + " y campaña " + data.body[indexCategoryArray].campaign;
+                            let currentProgress = ((100 * (parseFloat(indexList) + 1))/parseFloat(list.length));
+                            console.log("current: " + (indexList + 1) + ", total: " + list.length + ", %: " + currentProgress); 
+                            this.setState({
+                                progressValue: currentProgress,
+                            });
+        
+                        }
+        
+                        headers.push("action");
+                        headers.push("message");
+            
+                        // prepare columns list from headers
+                        const columns = headers.map(c => ({
+                            name: c,
+                            selector: c,
+                        }));
+        
+                        this.setState({
+                            currentAction: "reportDataTable",
+                            dataHeaders: columns,
+                            dataList: list,
+                        })
+                    }else{
+                        swal("Error", dataCampaign.message, "error");
                     }
-
-                }
-
-                headers.push("action");
-                headers.push("message");
-    
-                // prepare columns list from headers
-                const columns = headers.map(c => ({
-                    name: c,
-                    selector: c,
-                }));
-
-                this.setState({
-                    currentAction: "reportDataTable",
-                    dataHeaders: columns,
-                    dataList: list,
                 })
+                .catch(error => {
+                    swal("Error", "No se pudo acceder al recurso remoto", "error");
+                });
             }else{
-                swal("error", data.messgae, "error");   
+                swal("error", dataPhoneList.messgae, "error");   
             }
         })
         .catch(error => {
@@ -319,9 +378,27 @@ class CreateBaseScreen extends Component{
         );
     }
 
+    renderExcel = () => {
+        return(
+            <ExcelFile>
+                <ExcelSheet data={this.state.dataList} name="Datos">
+                    <ExcelColumn label="NOMBRE" value="NOMBRE"/>
+                    <ExcelColumn label="TELEFONO" value="TELEFONO"/>
+                    <ExcelColumn label="IDENTIFICACION" value="IDENTIFICACION"/>
+                    <ExcelColumn label="CIUDAD" value="CIUDAD"/>
+                    <ExcelColumn label="TELEFONO" value="TELEFONO"/>
+                    <ExcelColumn label="PLAN" value="PLAN"/>
+                    <ExcelColumn label="ACCION" value="action"/>
+                    <ExcelColumn label="MENSAJE" value="message"/>
+                </ExcelSheet>
+            </ExcelFile>
+        );
+    }
+
     renderDataTable = (classes) => {
         return(
             <Paper className = {classes.dataTableContainer}>
+                {this.renderExcel()}
                 <TableContainer className = {classes.container}>
                     <Table stickyHeader aria-label = "sticky table">
                         <TableHead>
