@@ -39,4 +39,13 @@ export  const CreateBaseStyles = theme => ({
         textTransform: "none",
         width: "10vw"
     },
+
+    onCreateButton: {
+        marginLeft: "auto",
+        marginRight: "auto"
+    },
+    
+    heading: {
+        fontSize: theme.typography.pxToRem(15),
+    },
 });
