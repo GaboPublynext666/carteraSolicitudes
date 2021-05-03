@@ -14,4 +14,7 @@ export const DataBaseItems = ([
     {
         name: "PLAN",
     },
+    {
+        name: "OPERADORA",
+    },
 ]);

@@ -60,7 +60,7 @@ const ExcelColumn = ReactExport.ExcelFile.ExcelColumn;
 function CircularProgressWithLabel(props) {
     return (
         <Box position="relative" display="inline-flex">
-            <CircularProgress variant="determinate" {...props} />
+            <CircularProgress style = {{marginLeft: "auto", marginRight: "auto", width: "15%", height: "15%"}} variant="determinate" {...props} />
             <Box
                 top={0}
                 left={0}
@@ -71,7 +71,7 @@ function CircularProgressWithLabel(props) {
                 alignItems="center"
                 justifyContent="center"
             >
-                <Typography variant="caption" component="div" color="textSecondary">{`${Math.round(
+                <Typography style = {{fontSize: "3vw"}} variant="caption" component="div" color="textSecondary">{`${Math.round(
                     props.value,
                 )}%`}</Typography>
             </Box>
@@ -200,7 +200,6 @@ class CreateBaseScreen extends Component{
             dataBaseFileName: file.name,
             dataBaseCsvFile: file
         });
-       
     }
 
     processCsvFile = () => {
@@ -297,10 +296,18 @@ class CreateBaseScreen extends Component{
                     if(dataCampaign.header === "OK" && dataCampaign.size === 1){
                         let currentLeadStatusList = this.state.leadStatusList;
                         for(let indexList = 0; indexList < list.length; indexList++){
+                            
+                            let currentProgress = ((100 * (parseFloat(indexList) + 1))/parseFloat(list.length));
+                            console.log("current: " + (indexList + 1) + ", total: " + list.length + ", %: " + currentProgress); 
+                            
+                            this.setState({
+                                progressValue: currentProgress,
+                            });
+
                             let indexCategoryArray = dataPhoneList.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["TELEFONO"]);
                             list[indexList]["action"] = 1;
                             list[indexList]["accion"] = "Información Ingresada";
-                            //list[indexList]["message"] = "Telefono valido";
+                            //list[indexList]["message"] = "No se encuentra en Lead";
 
                             let flagSaveClientInfo = true;
                             let flagMessageCLientInfo = "No se encuentra en Lead";
@@ -322,6 +329,10 @@ class CreateBaseScreen extends Component{
                             }
 
                             if(flagSaveClientInfo){
+                                let flagComesFromLead = 1;
+                                if(flagMessageCLientInfo === 'No se encuentra en Lead'){
+                                    flagComesFromLead = 0;
+                                }
                                 const requestData = {
                                     token: ApiRest.apiToken,
                                     campaignName: "camp_" + this.state.dataBaseName, 
@@ -330,6 +341,9 @@ class CreateBaseScreen extends Component{
                                     clientIdentification: list[indexList]["IDENTIFICACION"], 
                                     clientCity: list[indexList]["CIUDAD"], 
                                     clientPlan: list[indexList]["PLAN"], 
+                                    clientPhoneCompany: list[indexList]["OPERADORA"],
+                                    comesFromLead:  flagComesFromLead,
+                                    messageFromLead: flagMessageCLientInfo,
                                     clientCreator: 1
                                 };
                                 postInformationIntoCampaign(requestData).then(async response => {
@@ -349,12 +363,6 @@ class CreateBaseScreen extends Component{
                                     list[indexList]["message"] = "Error al acceder al recurso remoto";
                                 });
                             }
-
-                            let currentProgress = ((100 * (parseFloat(indexList) + 1))/parseFloat(list.length));
-                            console.log("current: " + (indexList + 1) + ", total: " + list.length + ", %: " + currentProgress); 
-                            this.setState({
-                                progressValue: currentProgress,
-                            });
         
                         }
         
@@ -602,6 +610,7 @@ class CreateBaseScreen extends Component{
                     <ExcelColumn label="CIUDAD" value="CIUDAD"/>
                     <ExcelColumn label="TELEFONO" value="TELEFONO"/>
                     <ExcelColumn label="PLAN" value="PLAN"/>
+                    <ExcelColumn label="OPERADORA" value="OPERADORA"/>
                     <ExcelColumn label="CODIGO" value="action"/>
                     <ExcelColumn label="ACCION" value="accion"/>
                     <ExcelColumn label="MENSAJE" value="message"/>
@@ -666,8 +675,8 @@ class CreateBaseScreen extends Component{
 
     renderProgressBar = (classes) => {
         return(
-            <div>
-                <CircularProgressWithLabel value = {this.state.progressValue} />;
+            <div style = {{height: "100%", display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center"}}>
+                <CircularProgressWithLabel value = {this.state.progressValue} />
             </div>
         );
     }
@@ -676,13 +685,13 @@ class CreateBaseScreen extends Component{
         switch(option){
             case "createDataBase":
                 return (
-                    <div>
+                    <div style = {{height: "88vh"}}>
                         {this.renderUploadFileViewComponent(classes)}
                     </div>
                 );
             case "progressBar":
                 return (
-                    <div>
+                    <div style = {{height: "88vh"}}>
                         {this.renderProgressBar(classes)}
                     </div>
                 );
