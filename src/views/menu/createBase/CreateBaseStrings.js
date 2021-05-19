@@ -8,5 +8,5 @@ export const CreateBaseStrings = ({
     createDataBaseButtonText: "Crear Cartera",
     uploadFileButtonText: "Subir Archivo",
 
-    filterTitleText: "Validar con Gestión Leads",
+    filterTitleText: "Actualizar Información de números existentes",
 });
