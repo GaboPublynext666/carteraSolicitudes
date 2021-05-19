@@ -25,7 +25,7 @@ export  const CreateBaseStyles = theme => ({
     },
 
     uploadFileComponent: {
-        marginTop: "2%",
+        marginTop: "1%",
         display: "flex",
         flexDirection: "row",
         width: "100%",

@@ -115,10 +115,10 @@ class LoginScreen extends Component {
 
     renderHeaderLogin = (classes) => {
         return(
-            <div className={classes.formContainer}>
-                <Image className={classes.appLogo} src = {Strings.appLogoUrl}/>
+            <div className = {classes.formContainer}>
+                <Image className = {classes.appLogo} src = {Strings.appLogoUrl}/>
 
-                <Typography component="h1" variant="h5" style = {{marginTop: "3vh", color: "white"}}>
+                <Typography component = "h1" variant = "h5" style = {{marginTop: "3vh", color: "white"}}>
                     {Strings.loginTitle}
                 </Typography>
             </div>
@@ -129,13 +129,13 @@ class LoginScreen extends Component {
         return(
             <form className={classes.bodyFormContainer} noValidate>
                 <TextField
-                    InputLabelProps={{
+                    InputLabelProps = {{
                         classes: {
                         root: classes.cssLabel,
                         focused: classes.cssFocused,
                         },
                     }}
-                    InputProps={{
+                    InputProps = {{
                         classes: {
                         root: classes.cssOutlinedInput,
                         focused: classes.cssFocused,
@@ -154,13 +154,13 @@ class LoginScreen extends Component {
                     autoFocus/>
 
                 <TextField
-                    InputLabelProps={{
+                    InputLabelProps = {{
                         classes: {
                         root: classes.cssLabel,
                         focused: classes.cssFocused,
                         },
                     }}
-                    InputProps={{
+                    InputProps = {{
                         classes: {
                         root: classes.cssOutlinedInput,
                         focused: classes.cssFocused,
@@ -180,7 +180,7 @@ class LoginScreen extends Component {
                     autoComplete = "current-password"/>
 
                 <FormControlLabel
-                    style={{color:'white'}}
+                    style = {{color:'white'}}
                     control = {
                         <CustomCheckBox 
                             value = "checked" 
@@ -204,7 +204,7 @@ class LoginScreen extends Component {
 
     renderCopyright = (classes) => {
         return(
-            <Box mt={8}>
+            <Box mt = {8}>
                 <CopyrightScreen fontColor = "white"/>
             </Box>
         );

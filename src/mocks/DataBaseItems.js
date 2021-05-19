@@ -1,20 +1,23 @@
 export const DataBaseItems = ([
     {
+        name: "IDENTIFICACION",
+    },
+    {
         name: "NOMBRE"
     },
     {
-        name: "TELEFONO"
-    },
-    {
-        name: "IDENTIFICACION",
+        name: "CELULAR"
     },
     {
         name: "CIUDAD",
     },
     {
-        name: "PLAN",
+        name: "TARIFA",
     },
     {
-        name: "OPERADORA",
+        name: "OTROS",
+    },
+    {
+        name: "OTROS1",
     },
 ]);

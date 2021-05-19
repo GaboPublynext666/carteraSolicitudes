@@ -1,10 +1,10 @@
 export const ApiRest = ({
-   apiHost: "http://10.10.100.47:80/apiCartera/WSClientPortfolio/procedures/ClientPortfolio",
-   apiToken: "015ec0d618fe3fa9c7d0a1abda2b159c",
+   apiHost: "http://solicitudes.claro.com.ec/api/procedures",
+   apiToken: "fa1e8f63ff72cf10c9ec00b5b7506666",
 
    //Get Methods
-
+   
    //Post Methods
-   postCreateCampaign: "/PostMethods/CreateCampaign.php",
-   postInformationIntoCampaign: "/PostMethods/SaveInformatIonIntoCampaign.php",
+   postCreateCampaign: "/postmethods/CreateCampaign.php",
+   postInformationIntoCampaign: "/postmethods/SaveInformatIonIntoCampaign.php",
 });

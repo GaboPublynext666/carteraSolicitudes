@@ -20,9 +20,10 @@ import {
     FormControlLabel,
     Accordion,
     AccordionSummary,
-    AccordionDetails
+    AccordionDetails,
 } from "@material-ui/core";
 import {withStyles} from "@material-ui/core/styles";
+import Autocomplete from '@material-ui/lab/Autocomplete';
 import CloudUploadIcon from '@material-ui/icons/CloudUpload';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import PropTypes from 'prop-types';
@@ -42,6 +43,7 @@ import {CreateBaseStrings} from "./CreateBaseStrings";
 //Api Rest
 import {ApiRest} from "../../../apiRest/ApiRest";
 import {
+    getParametersForPortfolio, 
     getAllLeadStatus,
     postCreateCampaign,
     postInformationIntoCampaign
@@ -59,19 +61,19 @@ const ExcelColumn = ReactExport.ExcelFile.ExcelColumn;
 
 function CircularProgressWithLabel(props) {
     return (
-        <Box position="relative" display="inline-flex">
+        <Box position = "relative" display = "inline-flex">
             <CircularProgress style = {{marginLeft: "auto", marginRight: "auto", width: "15%", height: "15%"}} variant="determinate" {...props} />
             <Box
-                top={0}
-                left={0}
-                bottom={0}
-                right={0}
-                position="absolute"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
+                top = {0}
+                left = {0}
+                bottom = {0}
+                right = {0}
+                position = "absolute"
+                display = "flex"
+                alignItems = "center"
+                justifyContent = "center"
             >
-                <Typography style = {{fontSize: "3vw"}} variant="caption" component="div" color="textSecondary">{`${Math.round(
+                <Typography style = {{fontSize: "3vw"}} variant = "caption" component = "div" color = "textSecondary">{`${Math.round(
                     props.value,
                 )}%`}</Typography>
             </Box>
@@ -93,7 +95,7 @@ const CustomCheckBox = withStyles({
     checked: {
         
     },
-})(props => <Checkbox color="default" {...props} />);
+})(props => <Checkbox size = "small" color = "default" {...props} />);
 
 const CustomAccordionSummary = withStyles({
     root: {
@@ -123,16 +125,29 @@ class CreateBaseScreen extends Component{
             dataHeaders2: [],
             dataList: [],
             leadStatusList: [],
+            originList: [],
+
+            //Parameters
+            campaignList: [],
+            originBaseList: [],
+            offerList: [],
+            phoneCompanyList: [],
+
+            selectedCampaignList: null,
+            selectedOriginBaseList: null,
+            selectedOfferList: null,
+            selectedPhoneCompanyList: null,
 
             //Accordion
             expandedAccordion: false,
+            
+            uploadedInfoItems: 0,
 
             page: 0,
             rowsPerPage: 10,
 
             //Cartera Data
             dataBaseName: "",
-            dataBaseDescription: "",
             dataBaseFileName: "",
             dataBaseCsvFile: null,
 
@@ -143,6 +158,41 @@ class CreateBaseScreen extends Component{
 
     componentDidMount(){
         this.getListStatusFromLeads();
+        this.gettinParameterFromApi("Campaña", "campaignList");
+        this.gettinParameterFromApi("Operadora", "phoneCompanyList");
+        this.gettinParameterFromApi("Origen Base", "originBaseList");
+        this.gettinParameterFromApi("Oferta", "offerList");
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if (prevState.uploadedInfoItems !== this.state.uploadedInfoItems && prevState.uploadedInfoItems < this.state.uploadedInfoItems) {
+            let currentProgress = ((100 * (parseFloat( this.state.uploadedInfoItems) + 1))/parseFloat(this.state.originList.length));
+            console.log("current: " + ( this.state.uploadedInfoItems + 1) + ", total: " + this.state.originList.length + ", %: " + currentProgress); 
+            
+            this.setState({
+                progressValue: currentProgress,
+            });
+
+            if(prevState.uploadedInfoItems < this.state.uploadedInfoItems && this.state.uploadedInfoItems >= this.state.originList.length){
+                this.setState({
+                    currentAction: "reportDataTable",
+                    dataList: this.state.originList,
+                })
+            }
+        }
+    }
+
+    gettinParameterFromApi = (parameterName, listName) => {
+        getParametersForPortfolio(parameterName).then(data => {
+            if(data.header === "OK" && data.count > 0){
+                let currentList = data.body;
+                currentList.push({Name: 'Otros'});
+                this.setState({[listName]: currentList})
+            }else{
+                this.setState({[listName]: []})
+            }
+        })
+        .catch(error => this.setState({[listName]: []}));
     }
 
     getListStatusFromLeads = () => {
@@ -162,13 +212,28 @@ class CreateBaseScreen extends Component{
             return;
         }
 
-        if(this.state.dataBaseName.includes(" ")){
-            swal("Nombre de Cartera no debe contener espacios en blanco.", {icon: "error"});
+        if(this.state.selectedCampaignList === null || (this.state.selectedCampaignList !== null && this.state.selectedCampaignList.Name && this.state.selectedCampaignList.Name.trim().length === 0)){
+            swal("Seleccion una Campaña.", {icon: "error"});
             return;
         }
 
-        if(this.state.dataBaseDescription.length === 0){
-            swal("Ingrese descripción para la cartera.", {icon: "error"});
+        if(this.state.selectedOriginBaseList === null || (this.state.selectedOriginBaseList !== null && this.state.selectedOriginBaseList.Name && this.state.selectedOriginBaseList.Name.trim().length === 0)){
+            swal("Seleccion un Origen de Base.", {icon: "error"});
+            return;
+        }
+
+        if(this.state.selectedPhoneCompanyList === null || (this.state.selectedPhoneCompanyList !== null && this.state.selectedPhoneCompanyList.Name && this.state.selectedPhoneCompanyList.Name.trim().length === 0)){
+            swal("Seleccion un Operadora.", {icon: "error"});
+            return;
+        }
+
+        if(this.state.selectedOfferList === null || (this.state.selectedOfferList !== null && this.state.selectedOfferList.Name && this.state.selectedOfferList.Name.trim().length === 0)){
+            swal("Seleccion una Oferta.", {icon: "error"});
+            return;
+        }
+
+        if(this.state.dataBaseName.includes(" ")){
+            swal("Nombre de Cartera no debe contener espacios en blanco.", {icon: "error"});
             return;
         }
 
@@ -271,7 +336,7 @@ class CreateBaseScreen extends Component{
                     listPhoneString = listPhoneString.concat(",");
                 }
 
-                listPhoneString = listPhoneString.concat("'" + obj["TELEFONO"] + "'");
+                listPhoneString = listPhoneString.concat("'" + obj["CELULAR"] + "'");
 
                 // remove the blank rows
                 if (Object.values(obj).filter(x => x).length > 0) {
@@ -281,47 +346,49 @@ class CreateBaseScreen extends Component{
         }
 
         
-        await fetch("https://ventasvirtuales.com.ec/api/procedures/getmethods/SearchLeadList.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&cellPhoneList="+listPhoneString)
+        await fetch("http://solicitudes.claro.com.ec/api/procedures/getmethods/SearchLeadList.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&cellPhoneList="+listPhoneString)
         .then(response => response.json())
         .then(dataPhoneList => {
             if(dataPhoneList.header === "OK"){
                 const requestOptions = {
                     token: ApiRest.apiToken,
-                    campaignName: this.state.dataBaseName,
-                    description: this.state.dataBaseDescription,
-                    createdBy: 1
+                    databaseName: this.state.dataBaseName, 
+                    comesFrom: "CARTERA", 
+                    campaignName: this.state.selectedCampaignList.Name, 
+                    originBase: this.state.selectedOriginBaseList.Name, 
+                    offerName: this.state.selectedOfferList.Name, 
+                    phoneCompany: this.state.selectedPhoneCompanyList.Name, 
+                    channelName: "Base de Datos", 
+                    creatorIndex: 0
                 };
                 postCreateCampaign(requestOptions).then(async response => {
                     const dataCampaign = await response.json();
-                    if(dataCampaign.header === "OK" && dataCampaign.size === 1){
+                    if(dataCampaign.header === "OK" && dataCampaign.count === 1){
                         let currentLeadStatusList = this.state.leadStatusList;
                         for(let indexList = 0; indexList < list.length; indexList++){
-                            
-                            let currentProgress = ((100 * (parseFloat(indexList) + 1))/parseFloat(list.length));
-                            console.log("current: " + (indexList + 1) + ", total: " + list.length + ", %: " + currentProgress); 
-                            
-                            this.setState({
-                                progressValue: currentProgress,
-                            });
 
-                            let indexCategoryArray = dataPhoneList.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["TELEFONO"]);
+                            let indexCategoryArray = dataPhoneList.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["CELULAR"]);
                             list[indexList]["action"] = 1;
                             list[indexList]["accion"] = "Información Ingresada";
-                            //list[indexList]["message"] = "No se encuentra en Lead";
-
+                            
                             let flagSaveClientInfo = true;
-                            let flagMessageCLientInfo = "No se encuentra en Lead";
-        
-                            if(indexCategoryArray >= 0 && this.state.validateWithLeads){
+                            let flagMessageCLientInfo = "No se encuentra en Master";
+                            list[indexList]["message"] = flagMessageCLientInfo;
+                            if(indexCategoryArray >= 0){
+                                flagSaveClientInfo = false;
+                                flagMessageCLientInfo = dataPhoneList.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + dataPhoneList.body[indexCategoryArray].leadStatus + " y campaña " + dataPhoneList.body[indexCategoryArray].campaign;
+                                list[indexList]["action"] = 0;
+                                list[indexList]["accion"] = "No Ingresado";
+                                list[indexList]["message"] = flagMessageCLientInfo;
+
                                 for(let indexType = 0; indexType < currentLeadStatusList.length; indexType++){
                                     let indexStatus = currentLeadStatusList[indexType].statusList.findIndex(currentStatus => currentStatus.estado_final === dataPhoneList.body[indexCategoryArray].leadStatus);
-                                    if(indexStatus > 0){
-                                        flagMessageCLientInfo = dataPhoneList.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + dataPhoneList.body[indexCategoryArray].leadStatus + " y campaña " + dataPhoneList.body[indexCategoryArray].campaign;
-                                        if(currentLeadStatusList[indexType].statusList[indexStatus].status){
-                                            list[indexList]["action"] = 0;
-                                            list[indexList]["accion"] = "No ingresado";
-                                            list[indexList]["message"] = dataPhoneList.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + dataPhoneList.body[indexCategoryArray].leadStatus + " y campaña " + dataPhoneList.body[indexCategoryArray].campaign;
-                                            flagSaveClientInfo = false;
+                                    if(indexStatus >= 0){
+                                        if(currentLeadStatusList[indexType].statusList[indexStatus].status && this.state.validateWithLeads){
+                                            list[indexList]["action"] = 1;
+                                            list[indexList]["accion"] = "Información Ingresada";
+                                            list[indexList]["message"] = flagMessageCLientInfo;
+                                            flagSaveClientInfo = true;
                                         }
                                         break;
                                     }
@@ -329,26 +396,21 @@ class CreateBaseScreen extends Component{
                             }
 
                             if(flagSaveClientInfo){
-                                let flagComesFromLead = 1;
-                                if(flagMessageCLientInfo === 'No se encuentra en Lead'){
-                                    flagComesFromLead = 0;
-                                }
                                 const requestData = {
                                     token: ApiRest.apiToken,
-                                    campaignName: "camp_" + this.state.dataBaseName, 
-                                    clientName: list[indexList]["NOMBRE"], 
-                                    clientPhone: list[indexList]["TELEFONO"], 
+                                    databaseName: this.state.dataBaseName, 
                                     clientIdentification: list[indexList]["IDENTIFICACION"], 
+                                    clientName: list[indexList]["NOMBRE"], 
+                                    clientPhone: list[indexList]["CELULAR"], 
                                     clientCity: list[indexList]["CIUDAD"], 
-                                    clientPlan: list[indexList]["PLAN"], 
-                                    clientPhoneCompany: list[indexList]["OPERADORA"],
-                                    comesFromLead:  flagComesFromLead,
-                                    messageFromLead: flagMessageCLientInfo,
-                                    clientCreator: 1
+                                    clientTariff: list[indexList]["TARIFA"], 
+                                    otherDatas: list[indexList]["OTROS"], 
+                                    anotherDatas: list[indexList]["OTROS1"], 
+                                    creator: 0
                                 };
                                 postInformationIntoCampaign(requestData).then(async response => {
                                     const data = await response.json();
-                                    if(data.header === "OK" && data.size === 1){
+                                    if(data.header === "OK" && data.count === 1){
                                         list[indexList]["action"] = 1;
                                         list[indexList]["accion"] = "Información Ingresada";
                                         list[indexList]["message"] = flagMessageCLientInfo;
@@ -357,10 +419,26 @@ class CreateBaseScreen extends Component{
                                         list[indexList]["accion"] = "No ingresado";
                                         list[indexList]["message"] = "No se pudo Ingresar el recurso";
                                     }
+
+                                    this.setState({
+                                        uploadedInfoItems: this.state.uploadedInfoItems + 1,
+                                        originList: list
+                                    });
+
+                                    
                                 }).catch(error => {
                                     list[indexList]["action"] = 0;
                                     list[indexList]["accion"] = "No ingresado";
-                                    list[indexList]["message"] = "Error al acceder al recurso remoto";
+                                    list[indexList]["message"] = "Error al acceder a la api.";
+                                    this.setState({
+                                        uploadedInfoItems: this.state.uploadedInfoItems + 1,
+                                        originList: list
+                                    });
+                                });
+                            }else{
+                                this.setState({
+                                    uploadedInfoItems: this.state.uploadedInfoItems + 1,
+                                    originList: list
                                 });
                             }
         
@@ -382,11 +460,9 @@ class CreateBaseScreen extends Component{
                         }));
 
                         this.setState({
-                            currentAction: "reportDataTable",
                             dataHeaders: columns,
-                            dataHeaders2: columns2,
-                            dataList: list,
-                        })
+                            dataHeaders2: columns2
+                        });
                     }else{
                         swal("Error", dataCampaign.message, "error");
                     }
@@ -399,7 +475,7 @@ class CreateBaseScreen extends Component{
             }
         })
         .catch(error => {
-            swal("error", "No se pudo conectar al hosting ventasvirtuales.com.ec", "error");
+            swal("error", "No se pudo conectar al hosting", "error");
         });
     }
 
@@ -453,17 +529,55 @@ class CreateBaseScreen extends Component{
                         label = {CreateBaseStrings.createDataBaseHintName}
                     />
 
-                    <TextField 
-                        className = {classes.textFieldComponent}
-                        fullWidth
-                        size = "small"
-                        variant = "outlined" 
-                        value = {this.state.dataBaseDescription}
-                        onChange = {(event) => this.setState({dataBaseDescription: event.target.value})}
-                        label = {CreateBaseStrings.createDataBaseHintDescription}
-                        multiline
-                        rows = {1}
-                    />
+                    <div style = {{display: "flex", flexDirection: "row", width: "100%", marginTop: "1%",}}>
+                        <Autocomplete
+                            id = "CampaignList"
+                            size = "small"
+                            options = {this.state.campaignList}
+                            style = {{marginRight: "1%",}}
+                            getOptionLabel = {(option) => option.Name}
+                            fullWidth 
+                            onChange = {(event, newValue) => this.setState({selectedCampaignList: newValue})}
+                            renderInput = {(params) => <TextField {...params} label = "Compaña" variant = "outlined" />}
+                        />
+
+                        <Autocomplete
+                            id = "OriginBaseList"
+                            size = "small"
+                            options = {this.state.originBaseList}
+                            style = {{marginLeft: "1%",}}
+                            getOptionLabel = {(option) => option.Name}
+                            fullWidth 
+                            onChange = {(event, newValue) => this.setState({selectedOriginBaseList: newValue})}
+                            renderInput = {(params) => <TextField {...params} label = "Origen de Base" variant = "outlined" />}
+                        />
+
+                    </div>
+
+                    <div style = {{display: "flex", flexDirection: "row", width: "100%", marginTop: "1%",}}>
+                        <Autocomplete
+                            id = "PhoneCompanyList"
+                            size = "small"
+                            options = {this.state.phoneCompanyList}
+                            style = {{marginRight: "1%",}}
+                            getOptionLabel = {(option) => option.Name}
+                            fullWidth 
+                            onChange = {(event, newValue) => this.setState({selectedPhoneCompanyList: newValue})}
+                            renderInput = {(params) => <TextField {...params} label = "Operadora" variant = "outlined" />}
+                        />
+
+                        <Autocomplete
+                            id = "offerList"
+                            size = "small"
+                            options = {this.state.offerList}
+                            style = {{marginLeft: "1%",}}
+                            getOptionLabel = {(option) => option.Name}
+                            fullWidth 
+                            onChange={(event, newValue) => this.setState({selectedOfferList: newValue})}
+                            renderInput = {(params) => <TextField {...params} label = "Oferta" variant = "outlined" />}
+                        />
+                    </div>
+                    
 
                     <div className = {classes.uploadFileComponent}>
                         <TextField 
@@ -478,9 +592,9 @@ class CreateBaseScreen extends Component{
                             disabled = {true}
                         />
                         <input 
-                            accept=".csv" 
-                            className={classes.uploadFileInput} 
-                            id="icon-button-file" type="file" 
+                            accept = ".csv" 
+                            className = {classes.uploadFileInput} 
+                            id = "icon-button-file" type="file" 
                             onChange = {(event) => this.onSelectFile(event)}
                         />
                         <label htmlFor="icon-button-file">
@@ -498,7 +612,7 @@ class CreateBaseScreen extends Component{
 
                     <div style = {{width: "100%"}}>
                         <FormControlLabel
-                            style={{color:'black'}}
+                            style = {{color:'black'}}
                             control = {
                                 <CustomCheckBox 
                                     value = "checked" 
@@ -521,7 +635,7 @@ class CreateBaseScreen extends Component{
                     size = "small"
                     onClick = {() => this.onCreateDataBaseClick()}
                 >
-                        {CreateBaseStrings.createDataBaseButtonText}      
+                    {CreateBaseStrings.createDataBaseButtonText}      
                 </Button>
             </div>
         );
@@ -531,13 +645,14 @@ class CreateBaseScreen extends Component{
         return(
             <div style = {{width: "100%", display: "flex", flexDirection: "column"}}>
                 {this.state.leadStatusList.map((currentType, indexType) => (
-                    <Accordion expanded = {this.state.expandedAccordion === currentType.tipo_llamada} onChange={this.onExpandAccordionEvent(currentType.tipo_llamada, "expandedAccordion")} style = {{backgroundColor: this.props.accordionTitleBackgroundColor, color: this.props.accordionTitleTextColor, padding: 0, marginLeft: 0, marginRight: 0, marginBottom: 0, marginTop: indexType > 0 ? "1vh" : 0}}>
+                    <Accordion expanded = {this.state.expandedAccordion === currentType.tipo_llamada} onChange = {this.onExpandAccordionEvent(currentType.tipo_llamada, "expandedAccordion")} style = {{backgroundColor: this.props.accordionTitleBackgroundColor, color: this.props.accordionTitleTextColor, padding: 0, marginLeft: 0, marginRight: 0, marginBottom: 0, marginTop: indexType > 0 ? "1vh" : 0}}>
                         <CustomAccordionSummary
-                            expandIcon={<ExpandMoreIcon style = {{color: this.props.accordionTitleTextColor,}}/>}
+                            expandIcon = {<ExpandMoreIcon style = {{color: this.props.accordionTitleTextColor,}}/>}
                             aria-controls="panel1bh-content">
 
                             <FormControlLabel
-                                style={{color:'black'}}
+                                style = {{color:'black', marginTop: "8px"}}
+                                size = "small"
                                 control = {
                                     <CustomCheckBox 
                                         value = "checked"
@@ -603,17 +718,17 @@ class CreateBaseScreen extends Component{
     renderExcel = () => {
         return(
             <ExcelFile>
-                <ExcelSheet data={this.state.dataList} name="Datos">
-                    <ExcelColumn label="NOMBRE" value="NOMBRE"/>
-                    <ExcelColumn label="TELEFONO" value="TELEFONO"/>
-                    <ExcelColumn label="IDENTIFICACION" value="IDENTIFICACION"/>
-                    <ExcelColumn label="CIUDAD" value="CIUDAD"/>
-                    <ExcelColumn label="TELEFONO" value="TELEFONO"/>
-                    <ExcelColumn label="PLAN" value="PLAN"/>
-                    <ExcelColumn label="OPERADORA" value="OPERADORA"/>
-                    <ExcelColumn label="CODIGO" value="action"/>
-                    <ExcelColumn label="ACCION" value="accion"/>
-                    <ExcelColumn label="MENSAJE" value="message"/>
+                <ExcelSheet data = {this.state.dataList} name = "Datos">
+                    <ExcelColumn label = "IDENTIFICACION" value = "IDENTIFICACION"/>
+                    <ExcelColumn label = "NOMBRE" value = "NOMBRE"/>
+                    <ExcelColumn label = "CELULAR" value = "CELULAR"/>
+                    <ExcelColumn label = "CIUDAD" value = "CIUDAD"/>
+                    <ExcelColumn label = "TARIFA" value = "TARIFA"/>
+                    <ExcelColumn label = "OTROS" value = "OTROS"/>
+                    <ExcelColumn label = "OTROS" value = "OTROS"/>
+                    <ExcelColumn label = "CODIGO" value = "action"/>
+                    <ExcelColumn label = "ACCION" value = "accion"/>
+                    <ExcelColumn label = "MENSAJE" value = "message"/>
                 </ExcelSheet>
             </ExcelFile>
         );
@@ -666,9 +781,9 @@ class CreateBaseScreen extends Component{
                     component = "div"
                     count = {this.state.dataList.length}
                     rowsPerPage = {this.state.rowsPerPage}
-                    page={this.state.page}
-                    onChangePage={this.onChangePage}
-                    onChangeRowsPerPage={this.onChangeRowsPerPage}/>
+                    page = {this.state.page}
+                    onChangePage = {this.onChangePage}
+                    onChangeRowsPerPage = {this.onChangeRowsPerPage}/>
             </Paper>
         );
     }
