@@ -44,9 +44,11 @@ import {CreateBaseStrings} from "./CreateBaseStrings";
 import {ApiRest} from "../../../apiRest/ApiRest";
 import {
     getParametersForPortfolio, 
+    getBlackListPhone,
     getAllLeadStatus,
     postCreateCampaign,
-    postInformationIntoCampaign
+    postInformationIntoCampaign, 
+    getMaterResume
 } from "../../../apiRest/ApiMethods";
 
 //Mocks
@@ -62,7 +64,7 @@ const ExcelColumn = ReactExport.ExcelFile.ExcelColumn;
 function CircularProgressWithLabel(props) {
     return (
         <Box position = "relative" display = "inline-flex">
-            <CircularProgress style = {{marginLeft: "auto", marginRight: "auto", width: "15%", height: "15%"}} variant="determinate" {...props} />
+            <CircularProgress style = {{marginLeft: "auto", marginRight: "auto", width: "15%", height: "15%"}} variant = "determinate" {...props} />
             <Box
                 top = {0}
                 left = {0}
@@ -126,12 +128,41 @@ class CreateBaseScreen extends Component{
             dataList: [],
             leadStatusList: [],
             originList: [],
+            phoneBlackList: [],
+            controlPhoneList: [],
+            groupListStatus: {
+                groupList: [
+                    {
+                        fieldName: "Lista Negra",
+                        displayName: "Lista Negra",
+                        status: false,
+                        selected: 0,
+                    },
+                    {
+                        fieldName: "Registros Nuevos", 
+                        displayName: "Registros Nuevos", 
+                        status: false,
+                        selected: 0,
+                    },
+    
+                    {
+                        fieldName: "Ya Registrados",
+                        displayName: "Ya Registrados",
+                        status: false,
+                        selected: 0,
+                    }
+                ],
+                "Registros Nuevos": 0,
+                "Lista Negra": 0,
+                "Ya Registrados": 0,
+            },
 
             //Parameters
             campaignList: [],
             originBaseList: [],
             offerList: [],
             phoneCompanyList: [],
+            actionButtonsCsv: "",
 
             selectedCampaignList: null,
             selectedOriginBaseList: null,
@@ -153,6 +184,14 @@ class CreateBaseScreen extends Component{
 
             //Lead Validation
             validateWithLeads: false,
+
+            //Info To Upload
+            totalToUpLoad: 0,
+            selectedToUpload: 0,
+            itemsUploadedSuccessfully: 0,
+
+            //master Resume
+            masterResume: null
         };
     }
 
@@ -162,6 +201,8 @@ class CreateBaseScreen extends Component{
         this.gettinParameterFromApi("Operadora", "phoneCompanyList");
         this.gettinParameterFromApi("Origen Base", "originBaseList");
         this.gettinParameterFromApi("Oferta", "offerList");
+        this.gettingPhoneBlackList();
+        this.gettingMasterResumeAfterUploading();
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -173,13 +214,66 @@ class CreateBaseScreen extends Component{
                 progressValue: currentProgress,
             });
 
-            if(prevState.uploadedInfoItems < this.state.uploadedInfoItems && this.state.uploadedInfoItems >= this.state.originList.length){
+            if(prevState.uploadedInfoItems < this.state.uploadedInfoItems && this.state.uploadedInfoItems >= this.state.originList.length && this.state.actionButtonsCsv === 'matching'){
+                this.setState({
+                    currentAction: "reportMatching",
+                    dataList: this.state.originList,
+                })
+            }
+            
+            if(prevState.uploadedInfoItems < this.state.uploadedInfoItems && this.state.uploadedInfoItems >= this.state.originList.length && this.state.actionButtonsCsv === 'uploadingPortfolio'){
+                this.gettingMasterResumeAfterUploading();
                 this.setState({
                     currentAction: "reportDataTable",
                     dataList: this.state.originList,
                 })
             }
         }
+    }
+
+    gettingMasterResumeAfterUploading = () => {
+        getMaterResume().then(data => {
+            if(data.header === "OK" && data.count > 0){
+                this.setState({
+                    masterResume: data.body
+                });
+            }else{
+                swal("No se pudo acceder a la Base Maestro", {icon: "error"});
+                this.setState({
+                    masterResume: null,
+                });
+            }
+        })
+        .catch(error => {
+            swal("No se pudo acceder a la Base Maestro", {icon: "error"});
+            this.setState({
+                masterResume: null,
+            });
+        });
+    }
+
+    gettingPhoneBlackList = () => {
+        getBlackListPhone().then(data => {
+            if(data.header === "OK" && data.count > 0){
+                let currentList = data.body;
+                this.setState({
+                    phoneBlackList: currentList
+                });
+            }else{
+                swal("No se pudo acceder a la lista Negra", {icon: "error"});
+                this.setState({
+                    currentAction: "",
+                    phoneBlackList: []
+                });
+            }
+        })
+        .catch(error => {
+            swal("No se pudo acceder a la lista Negra", {icon: "error"});
+            this.setState({
+                currentAction: "",
+                phoneBlackList: []
+            });
+        });
     }
 
     gettinParameterFromApi = (parameterName, listName) => {
@@ -207,10 +301,14 @@ class CreateBaseScreen extends Component{
     }
 
     onCreateDataBaseClick = () => {
-        if(this.state.dataBaseName.trim().length === 0){
-            swal("Ingrese nombre de Cartera.", {icon: "error"});
-            return;
-        }
+        // if(this.state.dataBaseName.trim().length === 0){
+        //     swal("Ingrese nombre de Cartera.", {icon: "error"});
+        //     return;
+        // }
+        var currentDate = new Date();
+        let nombreCarteraAux = "cartera"+ " " + String(currentDate.getDate()).padStart(2, '0') + "-" +String(currentDate.getMonth() + 1).padStart(2, '0') + "-" + currentDate.getFullYear() + " " + currentDate.getHours() + ":" + currentDate.getMinutes() + ":" + currentDate.getSeconds();
+
+        this.setState({dataBaseName: nombreCarteraAux});
 
         if(this.state.selectedCampaignList === null || (this.state.selectedCampaignList !== null && this.state.selectedCampaignList.Name && this.state.selectedCampaignList.Name.trim().length === 0)){
             swal("Seleccion una Campaña.", {icon: "error"});
@@ -253,6 +351,21 @@ class CreateBaseScreen extends Component{
         this.setState({rowsPerPage: event.target.value});
         this.setState({page: 0});
     };
+
+    onCheckedChangeGroupStatus = (event, index) => {
+        let currentGroupListStatus = this.state.groupListStatus;
+        currentGroupListStatus.groupList[index].status = event.target.checked;
+
+        let sizeGroupList = 1;
+        if(event.target.checked){
+            sizeGroupList =  -1;
+        }
+        
+        this.setState({
+            groupListStatus: currentGroupListStatus, 
+            selectedToUpload: this.state.selectedToUpload - (sizeGroupList * this.state.groupListStatus[this.state.groupListStatus.groupList[index].fieldName])
+        });
+    }
 
     onSelectFile = (event) => {
         const file = event.target.files[0];
@@ -345,131 +458,102 @@ class CreateBaseScreen extends Component{
             }
         }
 
+        let newGroupStatusList = this.state.groupListStatus;
+
         
-        await fetch("http://solicitudes.claro.com.ec/api/procedures/getmethods/SearchLeadList.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&cellPhoneList="+listPhoneString)
+
+        
+        await fetch("http://10.10.100.74/api/procedures/getmethods/SearchLeadList.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&cellPhoneList="+listPhoneString)
         .then(response => response.json())
         .then(dataPhoneList => {
             if(dataPhoneList.header === "OK"){
-                const requestOptions = {
-                    token: ApiRest.apiToken,
-                    databaseName: this.state.dataBaseName, 
-                    comesFrom: "CARTERA", 
-                    campaignName: this.state.selectedCampaignList.Name, 
-                    originBase: this.state.selectedOriginBaseList.Name, 
-                    offerName: this.state.selectedOfferList.Name, 
-                    phoneCompany: this.state.selectedPhoneCompanyList.Name, 
-                    channelName: "Base de Datos", 
-                    creatorIndex: 0
-                };
-                postCreateCampaign(requestOptions).then(async response => {
-                    const dataCampaign = await response.json();
-                    if(dataCampaign.header === "OK" && dataCampaign.count === 1){
-                        let currentLeadStatusList = this.state.leadStatusList;
-                        for(let indexList = 0; indexList < list.length; indexList++){
+                const currentPhoneBlackList = this.state.phoneBlackList;
+                let currentLeadStatusList = this.state.leadStatusList;
+                this.setState({actionButtonsCsv: 'matching'});
 
-                            let indexCategoryArray = dataPhoneList.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["CELULAR"]);
-                            list[indexList]["action"] = 1;
-                            list[indexList]["accion"] = "Información Ingresada";
+                for(let indexList = 0; indexList < list.length; indexList++){
+                    let indexBlackList = currentPhoneBlackList.findIndex(currentBlackList => currentBlackList.phone === list[indexList]["CELULAR"]);
+
+                    if(indexBlackList >= 0){
+                        newGroupStatusList["Lista Negra"] = newGroupStatusList["Lista Negra"] + 1;
+                        
+                        list[indexList]["action"] = 0;
+                        list[indexList]["accion"] = "";
+                        list[indexList]["message"] = "Número se encuentra en la lista Negra.";
+                    }else{
+                        let indexCategoryArray = dataPhoneList.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["CELULAR"]);
+                        if(indexCategoryArray >= 0){
+                            newGroupStatusList["Ya Registrados"] = newGroupStatusList["Ya Registrados"] + 1;
+                            if(dataPhoneList.body[indexCategoryArray].leadStatus === 'Regestión' || dataPhoneList.body[indexCategoryArray].leadStatus.length === 0){
+                                dataPhoneList.body[indexCategoryArray].leadStatus = 'No Llamado';
+                            }
                             
-                            let flagSaveClientInfo = true;
-                            let flagMessageCLientInfo = "No se encuentra en Master";
-                            list[indexList]["message"] = flagMessageCLientInfo;
-                            if(indexCategoryArray >= 0){
-                                flagSaveClientInfo = false;
-                                flagMessageCLientInfo = dataPhoneList.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + dataPhoneList.body[indexCategoryArray].leadStatus + " y campaña " + dataPhoneList.body[indexCategoryArray].campaign;
-                                list[indexList]["action"] = 0;
-                                list[indexList]["accion"] = "No Ingresado";
-                                list[indexList]["message"] = flagMessageCLientInfo;
+                            list[indexList]["action"] = 0;
+                            list[indexList]["accion"] = "";
+                            list[indexList]["message"] = dataPhoneList.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + dataPhoneList.body[indexCategoryArray].leadStatus + " y campaña " + dataPhoneList.body[indexCategoryArray].campaign;
 
-                                for(let indexType = 0; indexType < currentLeadStatusList.length; indexType++){
-                                    let indexStatus = currentLeadStatusList[indexType].statusList.findIndex(currentStatus => currentStatus.estado_final === dataPhoneList.body[indexCategoryArray].leadStatus);
-                                    if(indexStatus >= 0){
-                                        if(currentLeadStatusList[indexType].statusList[indexStatus].status && this.state.validateWithLeads){
-                                            list[indexList]["action"] = 1;
-                                            list[indexList]["accion"] = "Información Ingresada";
-                                            list[indexList]["message"] = flagMessageCLientInfo;
-                                            flagSaveClientInfo = true;
-                                        }
-                                        break;
+                            let flagValue = true;
+                            
+                            for(let indexType = 0; indexType < currentLeadStatusList.length; indexType++){
+                                let indexStatus = currentLeadStatusList[indexType].statusList.findIndex(currentStatus => currentStatus.estado_final === dataPhoneList.body[indexCategoryArray].leadStatus);
+                                if(indexStatus >= 0){
+                                    flagValue = false;
+                                    if(!currentLeadStatusList[indexType]["count"]){
+                                        currentLeadStatusList[indexType]["count"] = 0;
                                     }
+                                    currentLeadStatusList[indexType].count = currentLeadStatusList[indexType].count + 1;
+
+                                    if(!currentLeadStatusList[indexType].statusList[indexStatus]["size"]){
+                                        currentLeadStatusList[indexType].statusList[indexStatus]["size"] = 0;
+                                    }
+
+                                    currentLeadStatusList[indexType].statusList[indexStatus]["size"] = currentLeadStatusList[indexType].statusList[indexStatus]["size"] + 1;
                                 }
                             }
 
-                            if(flagSaveClientInfo){
-                                const requestData = {
-                                    token: ApiRest.apiToken,
-                                    databaseName: this.state.dataBaseName, 
-                                    clientIdentification: list[indexList]["IDENTIFICACION"], 
-                                    clientName: list[indexList]["NOMBRE"], 
-                                    clientPhone: list[indexList]["CELULAR"], 
-                                    clientCity: list[indexList]["CIUDAD"], 
-                                    clientTariff: list[indexList]["TARIFA"], 
-                                    otherDatas: list[indexList]["OTROS"], 
-                                    anotherDatas: list[indexList]["OTROS1"], 
-                                    creator: 0
-                                };
-                                postInformationIntoCampaign(requestData).then(async response => {
-                                    const data = await response.json();
-                                    if(data.header === "OK" && data.count === 1){
-                                        list[indexList]["action"] = 1;
-                                        list[indexList]["accion"] = "Información Ingresada";
-                                        list[indexList]["message"] = flagMessageCLientInfo;
-                                    }else{
-                                        list[indexList]["action"] = 0;
-                                        list[indexList]["accion"] = "No ingresado";
-                                        list[indexList]["message"] = "No se pudo Ingresar el recurso";
-                                    }
-
-                                    this.setState({
-                                        uploadedInfoItems: this.state.uploadedInfoItems + 1,
-                                        originList: list
-                                    });
-
-                                    
-                                }).catch(error => {
-                                    list[indexList]["action"] = 0;
-                                    list[indexList]["accion"] = "No ingresado";
-                                    list[indexList]["message"] = "Error al acceder a la api.";
-                                    this.setState({
-                                        uploadedInfoItems: this.state.uploadedInfoItems + 1,
-                                        originList: list
-                                    });
-                                });
-                            }else{
-                                this.setState({
-                                    uploadedInfoItems: this.state.uploadedInfoItems + 1,
-                                    originList: list
-                                });
+                        }else{
+                            newGroupStatusList["Registros Nuevos"] = newGroupStatusList["Registros Nuevos"] + 1;
+                            this.setState({selectedToUpload: this.state.selectedToUpload + 1});
+                            let indexGroupList = newGroupStatusList.groupList.findIndex(currentGroupList => currentGroupList.fieldName === "Registros Nuevos");
+                            if(indexGroupList > 0){
+                                newGroupStatusList.groupList[indexGroupList].status = true;
                             }
-        
-                        }
-        
-                        headers.push("accion");
-                        headers.push("message");
-            
-                        // prepare columns list from headers
-                        const columns2 = headers.map(c => ({
-                            name: c,
-                            selector: c,
-                        }));
 
-                        headers.push("action");                
-                        const columns = headers.map(c => ({
-                            name: c,
-                            selector: c,
-                        }));
+                            list[indexList]["action"] = 0;
+                            list[indexList]["accion"] = "";
+                            list[indexList]["message"] = "Número nuevo, no se encuentra en la master.";
+                        }
+                    }
 
                         this.setState({
-                            dataHeaders: columns,
-                            dataHeaders2: columns2
+                            uploadedInfoItems: this.state.uploadedInfoItems + 1,
+                            originList: list
                         });
-                    }else{
-                        swal("Error", dataCampaign.message, "error");
-                    }
-                })
-                .catch(error => {
-                    swal("Error", "No se pudo acceder al recurso remoto", "error");
+                }
+
+                headers.push("accion");
+                headers.push("message");
+    
+                // prepare columns list from headers
+                const columns2 = headers.map(c => ({
+                    name: c,
+                    selector: c,
+                }));
+
+                headers.push("action");                
+                const columns = headers.map(c => ({
+                    name: c,
+                    selector: c,
+                }));
+
+                this.setState({
+                    dataHeaders: columns,
+                    dataHeaders2: columns2,
+                    groupListStatus: newGroupStatusList,
+                    controlPhoneList: dataPhoneList,
+                    totalToUpLoad: list.length,
                 });
+
             }else{
                 swal("error", dataPhoneList.messgae, "error");   
             }
@@ -479,26 +563,365 @@ class CreateBaseScreen extends Component{
         });
     }
 
+    updatingCurrentMaster = () => {
+        this.setState({
+            currentAction: "progressBar",
+            uploadedInfoItems: 0,
+            actionButtonsCsv: 'uploadingPortfolio',
+        });
+
+        const requestOptions = {
+            token: ApiRest.apiToken,
+            databaseName: this.state.dataBaseName, 
+            comesFrom: "CARTERA", 
+            campaignName: this.state.selectedCampaignList.Name, 
+            originBase: this.state.selectedOriginBaseList.Name, 
+            offerName: this.state.selectedOfferList.Name, 
+            phoneCompany: this.state.selectedPhoneCompanyList.Name, 
+            channelName: "Base de Datos", 
+            creatorIndex: 0
+        };
+
+        let list = this.state.originList;
+        let dataPhoneList = this.state.controlPhoneList;
+        
+        postCreateCampaign(requestOptions).then(async response => {
+            const dataCampaign = await response.json();
+            if(dataCampaign.header === "OK" && dataCampaign.count === 1){
+                let currentLeadStatusList = this.state.leadStatusList;
+                for(let indexList = 0; indexList < list.length; indexList++){
+                    let flagSaveClientInfo = true;
+                    const currentPhoneBlackList = this.state.phoneBlackList;
+                    let indexBlackList = currentPhoneBlackList.findIndex(currentBlackList => currentBlackList.phone === list[indexList]["CELULAR"]);
+                    if(indexBlackList >= 0){
+                        list[indexList]["action"] = 0;
+                        list[indexList]["accion"] = "No Ingresado";
+
+                        flagSaveClientInfo = false;
+
+                        let indexGroupStatus = this.state.groupListStatus.groupList.findIndex(currentGroup => currentGroup.fieldName === "Lista Negra");
+                        
+                        if(indexGroupStatus > 0){
+                            if(this.state.groupListStatus.groupList[indexGroupStatus].status){
+                                list[indexList]["action"] = 1;
+                                list[indexList]["accion"] = "Información Ingresada";
+                                flagSaveClientInfo = true;
+                            }
+                        }
+                    }else{
+                        let indexCategoryArray = dataPhoneList.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["CELULAR"]);
+                        flagSaveClientInfo = false;
+                        if(indexCategoryArray >= 0){
+                            list[indexList]["action"] = 0;
+                            list[indexList]["accion"] = "No Ingresado";
+
+                            for(let indexType = 0; indexType < currentLeadStatusList.length; indexType++){
+                                let indexStatus = currentLeadStatusList[indexType].statusList.findIndex(currentStatus => currentStatus.estado_final === dataPhoneList.body[indexCategoryArray].leadStatus);
+                                if(indexStatus >= 0){
+                                    if(currentLeadStatusList[indexType].statusList[indexStatus].status){
+                                        list[indexList]["action"] = 1;
+                                        list[indexList]["accion"] = "Información Ingresada";
+                                        flagSaveClientInfo = true;
+                                    }
+                                    break;
+                                }
+                            }
+                        }else{
+                            list[indexList]["action"] = 0;
+                            list[indexList]["accion"] = "No Ingresado";
+
+                            let indexGroupStatus = this.state.groupListStatus.groupList.findIndex(currentGroup => currentGroup.fieldName === "Registros Nuevos");
+                            if(indexGroupStatus > 0){
+                                if(this.state.groupListStatus.groupList[indexGroupStatus].status){
+                                    list[indexList]["action"] = 1;
+                                    list[indexList]["accion"] = "Información Ingresada";
+                                    flagSaveClientInfo = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if(flagSaveClientInfo){
+                        this.setState({
+                            uploadedInfoItems: this.state.uploadedInfoItems + 1,
+                            originList: list
+                        });
+
+                        const requestData = {
+                            token: ApiRest.apiToken,
+                            databaseName: this.state.dataBaseName, 
+                            clientIdentification: list[indexList]["IDENTIFICACION"], 
+                            clientName: list[indexList]["NOMBRE"], 
+                            clientPhone: list[indexList]["CELULAR"], 
+                            clientCity: list[indexList]["CIUDAD"], 
+                            clientTariff: list[indexList]["TARIFA"], 
+                            otherDatas: list[indexList]["OTROS"], 
+                            anotherDatas: list[indexList]["OTROS1"], 
+                            creator: 0
+                        };
+
+                        postInformationIntoCampaign(requestData).then(async response => {
+                            const data = await response.json();
+                            if(data.header === "OK" && data.count === 1){
+                                this.setState({itemsUploadedSuccessfully: this.state.itemsUploadedSuccessfully + 1});
+                                list[indexList]["action"] = 1;
+                                list[indexList]["accion"] = "Información Ingresada";
+                            }else{
+                                list[indexList]["action"] = 0;
+                                list[indexList]["accion"] = "No ingresado";
+                                list[indexList]["message"] = "No se pudo Ingresar el recurso. " + list[indexList]["message"];
+                            }
+
+                            this.setState({
+                                uploadedInfoItems: this.state.uploadedInfoItems + 1,
+                                originList: list
+                            });
+                        }).catch(error => {
+                            list[indexList]["action"] = 0;
+                            list[indexList]["accion"] = "No ingresado";
+                            list[indexList]["message"] = "Error al acceder a la api. " + list[indexList]["message"];
+                            this.setState({
+                                uploadedInfoItems: this.state.uploadedInfoItems + 1,
+                                originList: list
+                            });
+                        });
+                    }else{
+                        this.setState({
+                            uploadedInfoItems: this.state.uploadedInfoItems + 1,
+                            originList: list
+                        });
+                    }
+                }
+            }else{
+                swal("Error", dataCampaign.message, "error");
+            }
+        })
+        .catch(error => {
+            swal("Error", "No se pudo acceder al recurso remoto", "error");
+        });
+    }
+
+
+    // doAfterAnalyze = () => {
+    
+    //     postCreateCampaign(requestOptions).then(async response => {
+    //         const dataCampaign = await response.json();
+    //         if(dataCampaign.header === "OK" && dataCampaign.count === 1){
+    //             let currentLeadStatusList = this.state.leadStatusList;
+    //             for(let indexList = 0; indexList < list.length; indexList++){
+    //                 const currentPhoneBlackList = this.state.phoneBlackList;
+    //                 let indexBlackList = currentPhoneBlackList.findIndex(currentBlackList => currentBlackList.phone === list[indexList]["CELULAR"]);
+    //                 if(indexBlackList >= 0){
+    //                     list[indexList]["action"] = 0;
+    //                     list[indexList]["accion"] = "No Ingresado";
+    //                     list[indexList]["message"] = "Número se encuentra en la lista Negra.";
+
+    //                     this.setState({
+    //                         uploadedInfoItems: this.state.uploadedInfoItems + 1,
+    //                         originList: list
+    //                     });
+    //                 }else{
+    //                     let indexCategoryArray = dataPhoneList.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["CELULAR"]);
+    //                     list[indexList]["action"] = 1;
+    //                     list[indexList]["accion"] = "Información Ingresada";
+                        
+    //                     let flagSaveClientInfo = true;
+    //                     let flagMessageCLientInfo = "No se encuentra en Master";
+    //                     list[indexList]["message"] = flagMessageCLientInfo;
+    //                     if(indexCategoryArray >= 0){
+    //                         flagSaveClientInfo = false;
+    //                         flagMessageCLientInfo = dataPhoneList.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + dataPhoneList.body[indexCategoryArray].leadStatus + " y campaña " + dataPhoneList.body[indexCategoryArray].campaign;
+    //                         list[indexList]["action"] = 0;
+    //                         list[indexList]["accion"] = "No Ingresado";
+    //                         list[indexList]["message"] = flagMessageCLientInfo;
+
+    //                         for(let indexType = 0; indexType < currentLeadStatusList.length; indexType++){
+    //                             let indexStatus = currentLeadStatusList[indexType].statusList.findIndex(currentStatus => currentStatus.estado_final === dataPhoneList.body[indexCategoryArray].leadStatus);
+    //                             if(indexStatus >= 0){
+    //                                 if(currentLeadStatusList[indexType].statusList[indexStatus].status && this.state.validateWithLeads){
+    //                                     list[indexList]["action"] = 1;
+    //                                     list[indexList]["accion"] = "Información Ingresada";
+    //                                     list[indexList]["message"] = flagMessageCLientInfo;
+    //                                     flagSaveClientInfo = true;
+    //                                 }
+    //                                 break;
+    //                             }
+    //                         }
+    //                     }
+
+    //                     if(flagSaveClientInfo){
+    //                         const requestData = {
+    //                             token: ApiRest.apiToken,
+    //                             databaseName: this.state.dataBaseName, 
+    //                             clientIdentification: list[indexList]["IDENTIFICACION"], 
+    //                             clientName: list[indexList]["NOMBRE"], 
+    //                             clientPhone: list[indexList]["CELULAR"], 
+    //                             clientCity: list[indexList]["CIUDAD"], 
+    //                             clientTariff: list[indexList]["TARIFA"], 
+    //                             otherDatas: list[indexList]["OTROS"], 
+    //                             anotherDatas: list[indexList]["OTROS1"], 
+    //                             creator: 0
+    //                         };
+    //                         postInformationIntoCampaign(requestData).then(async response => {
+    //                             const data = await response.json();
+    //                             if(data.header === "OK" && data.count === 1){
+    //                                 list[indexList]["action"] = 1;
+    //                                 list[indexList]["accion"] = "Información Ingresada";
+    //                                 list[indexList]["message"] = flagMessageCLientInfo;
+    //                             }else{
+    //                                 list[indexList]["action"] = 0;
+    //                                 list[indexList]["accion"] = "No ingresado";
+    //                                 list[indexList]["message"] = "No se pudo Ingresar el recurso";
+    //                             }
+
+    //                             this.setState({
+    //                                 uploadedInfoItems: this.state.uploadedInfoItems + 1,
+    //                                 originList: list
+    //                             });
+    //                         }).catch(error => {
+    //                             list[indexList]["action"] = 0;
+    //                             list[indexList]["accion"] = "No ingresado";
+    //                             list[indexList]["message"] = "Error al acceder a la api.";
+    //                             this.setState({
+    //                                 uploadedInfoItems: this.state.uploadedInfoItems + 1,
+    //                                 originList: list
+    //                             });
+    //                         });
+    //                     }else{
+    //                         this.setState({
+    //                             uploadedInfoItems: this.state.uploadedInfoItems + 1,
+    //                             originList: list
+    //                         });
+    //                     }
+    //                 }
+    //             }
+
+    //             headers.push("accion");
+    //             headers.push("message");
+    
+    //             // prepare columns list from headers
+    //             const columns2 = headers.map(c => ({
+    //                 name: c,
+    //                 selector: c,
+    //             }));
+
+    //             headers.push("action");                
+    //             const columns = headers.map(c => ({
+    //                 name: c,
+    //                 selector: c,
+    //             }));
+
+    //             this.setState({
+    //                 dataHeaders: columns,
+    //                 dataHeaders2: columns2
+    //             });
+    //         }else{
+    //             swal("Error", dataCampaign.message, "error");
+    //         }
+    //     })
+    //     .catch(error => {
+    //         swal("Error", "No se pudo acceder al recurso remoto", "error");
+    //     });
+    // }
+
     onExpandAccordionEvent = (panel, nameFlagAccordion) => (event, isExpanded) => {
         this.setState({[nameFlagAccordion]: isExpanded ? panel : false});
     }
 
-    onCheckedTypeStatus = (event, indexType) => {
+    onChenckedGroupListStatus = (event, indexGroup) => {
+        let currentGroupListStatus = this.state.groupListStatus;
+        currentGroupListStatus.groupList[indexGroup].status = event.target.checked;
+
         let currentListStatus = this.state.leadStatusList;
+        for(let i = 0; i < currentListStatus.length; i++){
+            let flagValueSize = 0;
+            let flagSelected = 0;
+            for(let j = 0; j < currentListStatus[i].statusList.length; j++){
+                if(currentListStatus[i].statusList[j].size > 0){
+                    if(event.target.checked){
+                        flagValueSize = flagValueSize + 1;
+                        flagSelected = flagSelected + currentListStatus[i].statusList[j].size;
+                    }
+                    currentListStatus[i].statusList[j].status = event.target.checked;
+                }else{
+                    currentListStatus[i].statusList[j].status = false;
+                }
+            }
 
-        for(let i = 0; i < currentListStatus[indexType].statusList.length; i++){
-            currentListStatus[indexType].statusList[i].status = event.target.checked;
+            currentListStatus[i].size = flagValueSize;
+            currentListStatus[i].selected = flagSelected;
         }
 
-        let flagValue = 0;
+        let sizeGroupList = 1;
+        let rowsToUpload = 0;
         if(event.target.checked){
-            flagValue = currentListStatus[indexType].statusList.length;
+            sizeGroupList =  -1;
+            rowsToUpload = currentGroupListStatus[currentGroupListStatus.groupList[indexGroup].fieldName];
+            currentGroupListStatus.groupList[indexGroup].selected = currentGroupListStatus[currentGroupListStatus.groupList[indexGroup].fieldName];
+        }else{
+            rowsToUpload = currentGroupListStatus.groupList[indexGroup].selected;
+            currentGroupListStatus.groupList[indexGroup].selected = 0;
         }
-        currentListStatus[indexType].size = flagValue;
-        this.setState({leadStatusList: currentListStatus});
+
+        this.setState({
+            leadStatusList: currentListStatus,
+            groupListStatus: currentGroupListStatus,
+            selectedToUpload: this.state.selectedToUpload - (sizeGroupList * rowsToUpload)
+        });
     }
 
-    onCheckedStatusItem = (event, indexType, indexStatus) => {
+    onCheckedTypeStatus = (event, indexType, indexGroup) => {
+        let currentListStatus = this.state.leadStatusList;
+
+        let availaibleType = 0;
+        let rowsSelectedToUpload = 0;
+        for(let i = 0; i < currentListStatus[indexType].statusList.length; i++){
+            if(currentListStatus[indexType].statusList[i].size > 0){
+                availaibleType = availaibleType + 1;
+                rowsSelectedToUpload = rowsSelectedToUpload + currentListStatus[indexType].statusList[i].size;
+                currentListStatus[indexType].statusList[i].status = event.target.checked;
+            }else{
+                currentListStatus[indexType].statusList[i].status = false;
+            }
+        }
+
+        let currentGroupListStatus = this.state.groupListStatus;
+
+        let sizeGroupList = 1;
+        let updateSelectedRows = 0;
+
+        if(event.target.checked){
+            sizeGroupList =  -1;
+            currentListStatus[indexType].size = availaibleType;
+            currentListStatus[indexType].selected = rowsSelectedToUpload;
+            currentGroupListStatus.groupList[indexGroup].status = event.target.checked;
+            updateSelectedRows = currentListStatus[indexType].selected;
+            
+        }else{
+            updateSelectedRows = currentListStatus[indexType].selected;
+            currentListStatus[indexType].size = 0;
+            currentListStatus[indexType].selected = 0;
+            let flagValueGroup = false;
+            for(let x = 0; x < currentListStatus.length; x++){
+                if(currentListStatus[x].size > 0){
+                    flagValueGroup = true;
+                    break;
+                }
+            }
+
+            currentGroupListStatus.groupList[indexGroup].status = flagValueGroup;
+        }
+
+        currentGroupListStatus.groupList[indexGroup].selected =  currentGroupListStatus.groupList[indexGroup].selected - (sizeGroupList * updateSelectedRows);
+
+        this.setState({
+            leadStatusList: currentListStatus,
+            groupListStatus: currentGroupListStatus,
+            selectedToUpload: this.state.selectedToUpload - (sizeGroupList * updateSelectedRows)
+        });
+    }
+
+    onCheckedStatusItem = (event, indexType, indexStatus, indexGroup) => {
         let currentListStatus = this.state.leadStatusList;
 
         currentListStatus[indexType].statusList[indexStatus].status = event.target.checked;
@@ -508,7 +931,26 @@ class CreateBaseScreen extends Component{
             flagValue = -1;
         }
         currentListStatus[indexType].size = currentListStatus[indexType].size - flagValue;
-        this.setState({leadStatusList: currentListStatus});
+        currentListStatus[indexType].selected = currentListStatus[indexType].selected - (flagValue * currentListStatus[indexType].statusList[indexStatus].size);
+
+        let currentGroupListStatus = this.state.groupListStatus;
+
+        let flagValueGroup = false;
+        for(let x = 0; x < currentListStatus.length; x++){
+            if(currentListStatus[x].size > 0){
+                flagValueGroup = true;
+                break;
+            }
+        }
+
+        currentGroupListStatus.groupList[indexGroup].status = flagValueGroup;
+        currentGroupListStatus.groupList[indexGroup].selected = currentGroupListStatus.groupList[indexGroup].selected - (flagValue * currentListStatus[indexType].statusList[indexStatus].size);
+
+        this.setState({
+            leadStatusList: currentListStatus,
+            groupListStatus: currentGroupListStatus,
+            selectedToUpload: this.state.selectedToUpload - (flagValue * currentListStatus[indexType].statusList[indexStatus].size)
+        });
     }
 
 
@@ -518,16 +960,6 @@ class CreateBaseScreen extends Component{
             <div style = {{width: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignContent: "center"}}>
                 <Container className = {classes.container}>
                     <Typography  className = {classes.title}>{CreateBaseStrings.title}</Typography>
-
-                    <TextField 
-                        className = {classes.textFieldComponent}
-                        fullWidth
-                        size = "small"
-                        variant = "outlined" 
-                        value = {this.state.dataBaseName}
-                        onChange = {(event) => this.setState({dataBaseName: event.target.value})}
-                        label = {CreateBaseStrings.createDataBaseHintName}
-                    />
 
                     <div style = {{display: "flex", flexDirection: "row", width: "100%", marginTop: "1%",}}>
                         <Autocomplete
@@ -573,7 +1005,7 @@ class CreateBaseScreen extends Component{
                             style = {{marginLeft: "1%",}}
                             getOptionLabel = {(option) => option.Name}
                             fullWidth 
-                            onChange={(event, newValue) => this.setState({selectedOfferList: newValue})}
+                            onChange = {(event, newValue) => this.setState({selectedOfferList: newValue})}
                             renderInput = {(params) => <TextField {...params} label = "Oferta" variant = "outlined" />}
                         />
                     </div>
@@ -609,24 +1041,6 @@ class CreateBaseScreen extends Component{
                             </Button>
                         </label>
                     </div>
-
-                    <div style = {{width: "100%"}}>
-                        <FormControlLabel
-                            style = {{color:'black'}}
-                            control = {
-                                <CustomCheckBox 
-                                    value = "checked" 
-                                    onChange = {() => this.setState({validateWithLeads: !this.state.validateWithLeads})} 
-                                    checked = {this.state.validateWithLeads}
-                                />
-                            }
-                            label = {CreateBaseStrings.filterTitleText}
-                        />
-                    </div>
-
-                    {this.state.validateWithLeads ? 
-                        this.renderFilterLeads(classes)
-                    : null}
                 </Container>
                 
                 <Button
@@ -635,7 +1049,7 @@ class CreateBaseScreen extends Component{
                     size = "small"
                     onClick = {() => this.onCreateDataBaseClick()}
                 >
-                    {CreateBaseStrings.createDataBaseButtonText}      
+                    {CreateBaseStrings.createMatchingDataBaseButtonText}      
                 </Button>
             </div>
         );
@@ -644,65 +1058,141 @@ class CreateBaseScreen extends Component{
     renderFilterLeads = (classes) => {
         return(
             <div style = {{width: "100%", display: "flex", flexDirection: "column"}}>
-                {this.state.leadStatusList.map((currentType, indexType) => (
-                    <Accordion expanded = {this.state.expandedAccordion === currentType.tipo_llamada} onChange = {this.onExpandAccordionEvent(currentType.tipo_llamada, "expandedAccordion")} style = {{backgroundColor: this.props.accordionTitleBackgroundColor, color: this.props.accordionTitleTextColor, padding: 0, marginLeft: 0, marginRight: 0, marginBottom: 0, marginTop: indexType > 0 ? "1vh" : 0}}>
-                        <CustomAccordionSummary
-                            expandIcon = {<ExpandMoreIcon style = {{color: this.props.accordionTitleTextColor,}}/>}
-                            aria-controls="panel1bh-content">
+                <Typography style = {{fontWeight: "bold", textAlign: "center"}}>Resumen del Matching</Typography>
 
-                            <FormControlLabel
-                                style = {{color:'black', marginTop: "8px"}}
-                                size = "small"
-                                control = {
-                                    <CustomCheckBox 
-                                        value = "checked"
-                                        checked = {this.state.leadStatusList[indexType].size > 0 ? true : false}
-                                        onChange = {(event) => this.onCheckedTypeStatus(event, indexType)}
-                                    />
-                                }
-                                label = {currentType.tipo_llamada}
-                            />
-                        </CustomAccordionSummary>
+                {this.state.groupListStatus.groupList.map((currentGroupStatus, indexGroupStatus) => (
+                    indexGroupStatus + 1 >= this.state.groupListStatus.groupList.length ? 
+                        <Accordion expanded = {true} style = {{backgroundColor: this.props.accordionTitleBackgroundColor, color: this.props.accordionTitleTextColor, padding: 0, marginLeft: 0, marginRight: 0, marginBottom: 0, marginTop: indexGroupStatus > 0 ? "1vh" : 0}}>
+                            <CustomAccordionSummary
+                                aria-controls="panel1bh-content">
 
-                        <AccordionDetails style = {{backgroundColor: this.props.accordionSubTitleContentBackgroundColor}}>
-                            {this.renderStatusComponent(currentType.statusList, 3, indexType)}
-                        </AccordionDetails>
-                    </Accordion>
+                                <FormControlLabel
+                                    style = {{color:'black', marginTop: "8px"}}
+                                    size = "small"
+                                    control = {
+                                        <CustomCheckBox 
+                                            value = "checked"
+                                            checked = {this.state.groupListStatus.groupList[indexGroupStatus].status}
+                                            onChange = {(event) => this.onChenckedGroupListStatus(event, indexGroupStatus)}
+                                            disabled = {this.state.groupListStatus[currentGroupStatus.fieldName] > 0 ? false : true }
+                                        />
+                                    }
+                                    label = {currentGroupStatus.displayName + " ( " + this.state.groupListStatus.groupList[indexGroupStatus].selected + " / " + this.state.groupListStatus[currentGroupStatus.fieldName] + " )"}
+                                />
+                            </CustomAccordionSummary>
+
+                            <AccordionDetails style = {{backgroundColor: this.props.accordionSubTitleContentBackgroundColor, display: "flex", flexDirection: "column", paddingLeft: "3%", paddingRight: "2%"}}>
+                                {this.state.leadStatusList.map((currentType, indexType) => (
+                                    <Accordion expanded = {true} onChange = {this.onExpandAccordionEvent(currentType.tipo_llamada, "expandedAccordion")} style = {{backgroundColor: this.props.accordionTitleBackgroundColor, color: this.props.accordionTitleTextColor, padding: 0, marginLeft: 0, marginRight: 0, marginBottom: 0, marginTop: indexType > 0 ? "1vh" : 0}}>
+                                        <CustomAccordionSummary
+                                            expandIcon = {<ExpandMoreIcon style = {{color: this.props.accordionTitleTextColor,}}/>}
+                                            aria-controls="panel1bh-content">
+
+                                            <FormControlLabel
+                                                style = {{color:'black', marginTop: "8px"}}
+                                                size = "small"
+                                                control = {
+                                                    <CustomCheckBox 
+                                                        value = "checked"
+                                                        checked = {this.state.leadStatusList[indexType].size > 0 ? true : false}
+                                                        onChange = {(event) => this.onCheckedTypeStatus(event, indexType, indexGroupStatus)}
+                                                        disabled = {currentType.count > 0 ? false : true }
+                                                    />
+                                                }
+                                                label = {currentType.tipo_llamada + " ( " + this.state.leadStatusList[indexType].selected  + " / " + currentType.count + " )"}
+                                            />
+                                        </CustomAccordionSummary>
+
+                                        <AccordionDetails style = {{backgroundColor: this.props.accordionSubTitleContentBackgroundColor}}>
+                                            {this.renderStatusComponent(currentType.statusList, 4, indexType, indexGroupStatus)}
+                                        </AccordionDetails>
+                                    </Accordion>
+                                ))}
+                            </AccordionDetails>
+                        </Accordion>
+                    :   <Accordion expanded = {true} style = {{backgroundColor: this.props.accordionTitleBackgroundColor, color: this.props.accordionTitleTextColor, padding: 0, marginLeft: 0, marginRight: 0, marginBottom: 0, marginTop: indexGroupStatus > 0 ? "1vh" : 0}}>
+                            <CustomAccordionSummary
+                                aria-controls="panel1bh-content">
+
+                                <FormControlLabel
+                                    style = {{color:'black', marginTop: "8px"}}
+                                    size = "small"
+                                    control = {
+                                        <CustomCheckBox 
+                                            value = "checked"
+                                            checked = {this.state.groupListStatus.groupList[indexGroupStatus].status}
+                                            onChange = {(event) => this.onCheckedChangeGroupStatus(event, indexGroupStatus)}
+                                            disabled = {this.state.groupListStatus[currentGroupStatus.fieldName] > 0 ? false : true }
+                                        />
+                                    }
+                                    label = {currentGroupStatus.displayName + " (" + this.state.groupListStatus[currentGroupStatus.fieldName] + ")"}
+                                />
+                            </CustomAccordionSummary>
+                        </Accordion>
                 ))}
+
+                <div style = {{width: "100%", display: "flex", marginTop: "10px", flexDirection: "row"}}>
+                    <div style = {{display: "flex", flexDirection: "row"}}>
+                        <Typography style = {{fontWeight: "bold", fontSize: "0.8vw"}}>Total: </Typography>
+                        <Typography style = {{marginLeft: "20px", fontSize: "0.8vw"}}>{this.state.totalToUpLoad + ","}</Typography>
+                    </div>
+                    <div style = {{display: "flex", flexDirection: "row", marginLeft: "30px", flex: 1}}>
+                        <Typography style = {{fontWeight: "bold", fontSize: "0.8vw"}}>Listos para subir: </Typography>
+                        <Typography style = {{marginLeft: "20px", fontSize: "0.8vw"}}>{this.state.selectedToUpload}</Typography>
+                    </div>
+
+                    {this.state.selectedToUpload > 0 ?
+                        <Button
+                            className = {[classes.createDataBaseButton, classes.onCreateButton]}
+                            variant = "contained"
+                            size = "small"
+                            onClick = {() => this.updatingCurrentMaster()}
+                        >
+                            {CreateBaseStrings.createDataBaseButtonText}      
+                        </Button>
+                    : null}
+                    
+                </div>
             </div>
         );
     }
 
-    renderStatusComponent = (statusArrayList, eachIndex, indexType) => {
+    renderStatusComponent = (statusArrayList, eachIndex, indexType, indexGroupStatus) => {
         let arrayToRender = [];
         for(let i = 0; i < statusArrayList.length; i = i + eachIndex){
             let endIndex = i + eachIndex;
-            arrayToRender.push(this.renderEachStatus(i, endIndex, statusArrayList, indexType));
+            let lastFlex= 1;
+            if(endIndex >= statusArrayList.length){
+                lastFlex = lastFlex + (eachIndex - (statusArrayList.length - i));
+            }
+
+            arrayToRender.push(this.renderEachStatus(i, endIndex, statusArrayList, indexType, lastFlex, indexGroupStatus));
         }
 
         return(
-            <div style = {{width: "100%", display: "flex", flexDirection: "column", marginLeft: "7%"}}>
+            <div style = {{width: "100%", display: "flex", flexDirection: "column", marginLeft: "3%"}}>
                 {arrayToRender}
             </div>
         );
     }
 
-    renderEachStatus(startIndex, endIndex, statusArrayList, indexType){
+    renderEachStatus(startIndex, endIndex, statusArrayList, indexType, lastFlex, indexGroupStatus){
         let arrayToRender = [];
 
         for(let index = startIndex; index < endIndex; index++){
             if(index < statusArrayList.length){
                 arrayToRender.push(
                     <FormControlLabel
-                        style={{color:'black', flex: 1}}
+                        style={{color:'black', flex: index + 1 === statusArrayList.length ? lastFlex : 1 }}
                         control = {
                             <CustomCheckBox 
                                 value = "checked"
                                 checked = {this.state.leadStatusList[indexType].statusList[index].status}
-                                onChange = {(event) => this.onCheckedStatusItem(event,indexType,index)}
+                                onChange = {(event) => this.onCheckedStatusItem(event, indexType, index, indexGroupStatus)}
+                                disabled = {statusArrayList[index].size > 0 ? false : true }
                             />
                         }
-                        label = {statusArrayList[index].estado_final}
+                        label = {statusArrayList[index].estado_final + " (" + statusArrayList[index].size + " )"}
                     />
                 );
             }
@@ -796,6 +1286,57 @@ class CreateBaseScreen extends Component{
         );
     }
 
+    renderMasterResume = (classes) => {
+        return(
+            <Container className = {classes.container}>
+                <Typography style = {{fontWeight: "bold", textAlign: "center"}}>Resumen Base Maestro</Typography>
+                <div style = {{display: "flex", flexDirection: "row", width: "600px", marginTop: "20px"}}>
+                    <Typography style = {{fontWeight: "bold", flex: 1}}>Registros Ingresados/Actualizados:</Typography>
+                    <Typography style = {{fontWeight: "bold"}}>{this.state.itemsUploadedSuccessfully} de {this.state.selectedToUpload}</Typography>
+                </div>
+                {this.state.masterResume !== null ?
+                    <div style = {{width: "600px", display: "flex", flexDirection: "column", marginTop: "20px"}}> 
+                       
+
+                        {this.state.masterResume.comesFromResume.map((comesFrom, index) => (
+                            <div style = {{display: "flex", flexDirection: "column", width: "100%", marginTop: "15px"}}>
+                                <div style = {{display: "flex", flexDirection: "row", width: "100%"}}>
+                                    <Typography style = {{fontWeight: "bold", flex: 1, }}>Registros de {comesFrom.comesFrom}:</Typography>
+                                    <Typography style = {{fontWeight: "bold"}}>{comesFrom.totalComesFrom}</Typography>
+                                </div>
+                                <div style = {{display: "flex", flexDirection: "column", width: "100%", paddingLeft: "50px"}}>
+                                    {this.state.masterResume.statusAssigmentResume.map((currentStatus, indexStatus) => (
+                                        <div style = {{display: "flex", flexDirection: "row", width: "100%"}}>
+                                            <Typography style = {{flex: 1, color: "grey"}}>{comesFrom.comesFrom} {currentStatus.statusAssigment}:</Typography>
+                                            <Typography style = {{color: "grey"}}>{this.state.masterResume.detailedResume[comesFrom.comesFrom][currentStatus.statusAssigment].totalResume}</Typography>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+
+                        <div style = {{display: "flex", flexDirection: "column", width: "100%", marginTop: "15px"}}>
+                            <div style = {{display: "flex", flexDirection: "row", width: "100%"}}>
+                                <Typography style = {{fontWeight: "bold", flex: 1,}}>Total de Registros:</Typography>
+                                <Typography style = {{fontWeight: "bold"}}>{this.state.masterResume.totalResume}</Typography>
+                            </div> 
+
+                            <div style = {{display: "flex", flexDirection: "column", width: "100%", paddingLeft: "50px"}}>
+                                {this.state.masterResume.statusAssigmentResume.map((currentStatus, indexStatus) => (
+                                    <div style = {{display: "flex", flexDirection: "row", width: "100%"}}>
+                                        <Typography style = {{flex: 1, color: "grey"}}>Total {currentStatus.statusAssigment}:</Typography>
+                                        <Typography style = {{color: "grey"}}>{currentStatus.totalStatusAssigment}</Typography>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                : null}
+                
+            </Container>
+        );
+    }
+
     renderCurrentView = (option, classes) => {
         switch(option){
             case "createDataBase":
@@ -810,11 +1351,16 @@ class CreateBaseScreen extends Component{
                         {this.renderProgressBar(classes)}
                     </div>
                 );
+            case "reportMatching": 
+                return(
+                    this.renderFilterLeads(classes)
+                );
             case "reportDataTable":
                 return (
-                    <div>
-                        {this.renderDataTable(classes)}
-                    </div>
+                    this.renderMasterResume(classes)
+                    // <div>
+                    //     {this.renderDataTable(classes)}
+                    // </div>
                 );
             default:
                 return null;

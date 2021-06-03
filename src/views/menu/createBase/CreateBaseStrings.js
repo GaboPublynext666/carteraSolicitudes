@@ -1,11 +1,12 @@
 export const CreateBaseStrings = ({
-    title: "Crear Cartera de Clientes",
+    title: "Subir Cartera de Clientes",
 
     createDataBaseHintName: "Nombre de Cartera",
     createDataBaseHintDescription: "Descripción",
     fileNameHintText: "Nombre de Archivo",
     
-    createDataBaseButtonText: "Crear Cartera",
+    createDataBaseButtonText: "Subir Cartera",
+    createMatchingDataBaseButtonText: "Generar Matching",
     uploadFileButtonText: "Subir Archivo",
 
     filterTitleText: "Actualizar Información de números existentes",

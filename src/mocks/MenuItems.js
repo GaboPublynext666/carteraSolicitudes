@@ -23,7 +23,7 @@ export const MenuItems = ([
         items: [
             {
                 index: 200,
-                name: "Login",
+                name: "Cerrar Sesión",
                 action: "logout",
                 icon: "/login",
             }

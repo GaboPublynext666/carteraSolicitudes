@@ -29,6 +29,14 @@ import {Strings} from "../../strings";
 //import Sweet Alert
 import swal from 'sweetalert';
 
+import {
+    getAuthentication,
+} from "../../apiRest/ApiMethods";
+
+import{
+    getSessionFromStorage
+} from "../../generalMethods/generalMethods";
+
 const useStyles = theme => ({
 
     cssLabel: {
@@ -111,8 +119,50 @@ class LoginScreen extends Component {
 
             businessData: {}
         }
-   }
+    }
 
+    componentDidMount(){
+        if(getSessionFromStorage()){
+            this.props.history.push("/menu");
+        }
+    }
+    
+    authenticateUser = () => {
+        if(this.state.loginUsername.trim().length <= 0){
+            swal("Faltan datos", "Ingrese su usuario, por favor.", "error");
+            return
+        }
+
+        if(this.state.loginPassword.trim().length <= 0){
+            swal("Faltan datos", "Ingrese su contraseña, por favor.", "error");
+            return
+        }
+
+        this.getAuthenticateData();
+    }
+
+    getAuthenticateData = () => {
+        getAuthentication(this.state.loginUsername, this.state.loginPassword)
+		.then(data => {
+            if(data.header === 'OK' && data.count > 0){
+                this.saveSession(data.body[0]);
+                this.props.history.push("/menu");
+            }else{
+                swal("Error", data.message, "error");
+            }
+		})
+		.catch(error => swal("Error", error, "error"));
+	}
+
+    saveSession = (data) => {
+        if(this.state.loginRemember){
+            localStorage.setItem("authCredentials", JSON.stringify(data));
+        }else{
+            sessionStorage.setItem("authCredentials", JSON.stringify(data));
+        }
+    }
+
+    //render
     renderHeaderLogin = (classes) => {
         return(
             <div className = {classes.formContainer}>
