@@ -20,7 +20,7 @@ const App = () =>{
 				<Switch>			
 					<Route path = "/login" exact component = {LoginScreen}/>
 					<Route path = "/menu" exact component = {MainMenuScreen}/>
-					<Route path = "/" exact component = {LoginScreen}/>
+					<Route path = "/" component = {LoginScreen}/>
 				</Switch>
 			</Router>
 		</div>

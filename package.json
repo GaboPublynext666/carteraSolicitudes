@@ -21,6 +21,7 @@
     "web-vitals": "^1.0.1",
     "xlsx": "^0.16.9"
   },
+  "homepage": "http://smscaster.sms.com.ec/",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

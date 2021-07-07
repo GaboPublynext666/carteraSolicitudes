@@ -1,3 +1,7 @@
+import {
+    CloudUpload,
+    Storage,
+ } from "@material-ui/icons";
 export const MenuItems = ([
     {
         index: 0,
@@ -5,28 +9,16 @@ export const MenuItems = ([
         items: [
             {
                 index: 0,
-                name: "Ingresar Base",
+                name: "Subir Cartera",
                 action: "/menu/create-base",
-                icon: "",
+                icon: <CloudUpload/>,
             },
             {
                 index: 1,
-                name: "Asignar Base",
-                action: "assignBase",
-                icon: "/menu",
-            }
+                name: "Resumen Maestro",
+                action: "/menu/resume-master",
+                icon: <Storage />,
+            },
         ]
     },
-    {
-        index: 1,
-        name: "Second Module",
-        items: [
-            {
-                index: 200,
-                name: "Cerrar Sesión",
-                action: "logout",
-                icon: "/login",
-            }
-        ]
-    }
 ]);

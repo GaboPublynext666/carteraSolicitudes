@@ -19,8 +19,7 @@ import {
    Menu,
    ChevronLeft,
    ChevronRight,
-   MoveToInbox,
-   Mail
+   ExitToApp,
 } from "@material-ui/icons";
 
 //React Router
@@ -39,6 +38,9 @@ import {MenuStyles} from "./MenuStyles";
 
 //Modules
 import CreateBaseScreen from "./createBase/CreateBaseScreen";
+import ResumeMasterScreen from "./resumeMaster/ResumeMasterScreen";
+
+import {getSessionFromStorage} from "../../generalMethods/generalMethods";
 
 //Mocks
 import {MenuItems} from "../../mocks/MenuItems";
@@ -50,9 +52,28 @@ class MainMenuScreen extends Component{
       this.state = {
          openDrawer: false,
          currentAction: null,
+         currentMenuItem: "",
+         currentSession: null,
       };
    }
-       
+
+   componentDidMount(){
+      const getSession = getSessionFromStorage();
+      if(getSession){
+         this.setState({currentSession: JSON.parse(getSession)});
+      }else{
+         this.logoutCurrentSession();
+      }
+   }
+   
+   logoutCurrentSession = () => {
+		localStorage.clear();
+		sessionStorage.clear();
+		this.props.history.push("/");
+	}
+
+
+   //Renderers
    render(){
       const { classes, theme } = this.props;
       return(
@@ -80,7 +101,7 @@ class MainMenuScreen extends Component{
                   </IconButton>
 
                   <Typography variant = "h6" noWrap>
-                     Mini variant drawer
+                     {this.state.currentMenuItem}
                   </Typography>
                </Toolbar>
             </AppBar>
@@ -112,8 +133,8 @@ class MainMenuScreen extends Component{
                      <List>
                         {currentModule.items.map((currentItem, indexItem) => (
                            <Link to = {currentItem.action}>
-                              <ListItem button key={currentItem.name}>
-                                 <ListItemIcon>{indexItem % 2 === 0 ? <MoveToInbox /> : <Mail />}</ListItemIcon>
+                              <ListItem button key={currentItem.name} onClick = {() => this.setState({currentMenuItem: currentItem.name})}>
+                                 <ListItemIcon>{currentItem.icon}</ListItemIcon>
                                  <ListItemText primary = {currentItem.name} />
                               </ListItem>
                            </Link>
@@ -123,6 +144,12 @@ class MainMenuScreen extends Component{
                      <Divider />
                   </div>
                ))}
+               <List>
+                  <ListItem button key="butttonLogout" onClick = {() => this.logoutCurrentSession()}>
+                     <ListItemIcon><ExitToApp/></ListItemIcon>
+                     <ListItemText primary = "Cerrar Sesión" />
+                  </ListItem>
+               </List>
             </Drawer>
 
             <main className={classes.content}>
@@ -130,6 +157,7 @@ class MainMenuScreen extends Component{
                
                <Switch>			
                   <Route path = "/menu/create-base" exact component = {CreateBaseScreen}/>
+                  <Route path = "/menu/resume-master" exact component = {ResumeMasterScreen}/>
                </Switch>
             </main>
          </div>

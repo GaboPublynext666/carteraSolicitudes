@@ -1,5 +1,6 @@
 export const Strings = ({
-    apiUrl: "http://10.10.100.47",
+    //apiUrl: "http://10.10.100.47",
+    apiUrl: "http://solicitudes.claro.com.ec",
     apiImageFolder: "/media/",
     developedBy: "Desarrollado Por @Gabriel Borbor",
     currentYear: new Date().getFullYear(),

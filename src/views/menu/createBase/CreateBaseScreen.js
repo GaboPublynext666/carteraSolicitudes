@@ -8,6 +8,7 @@ import {
     Button,
     Box,
     CircularProgress,
+    LinearProgress, 
     TableRow, 
     TablePagination, 
     TableHead, 
@@ -20,7 +21,7 @@ import {
     FormControlLabel,
     Accordion,
     AccordionSummary,
-    AccordionDetails,
+    AccordionDetails, 
 } from "@material-ui/core";
 import {withStyles} from "@material-ui/core/styles";
 import Autocomplete from '@material-ui/lab/Autocomplete';
@@ -53,6 +54,8 @@ import {
 
 //Mocks
 import {DataBaseItems} from "../../../mocks/DataBaseItems";
+
+import {getSessionFromStorage}from "../../../generalMethods/generalMethods";
 
 //Excel
 import ReactExport from "react-export-excel";
@@ -130,6 +133,7 @@ class CreateBaseScreen extends Component{
             originList: [],
             phoneBlackList: [],
             controlPhoneList: [],
+            currentSession: null,
             groupListStatus: {
                 groupList: [
                     {
@@ -189,26 +193,125 @@ class CreateBaseScreen extends Component{
             totalToUpLoad: 0,
             selectedToUpload: 0,
             itemsUploadedSuccessfully: 0,
+            itemsUploadedFailed: 0,
 
             //master Resume
             masterResume: null
         };
     }
 
-    componentDidMount(){
-        this.getListStatusFromLeads();
-        this.gettinParameterFromApi("Campaña", "campaignList");
-        this.gettinParameterFromApi("Operadora", "phoneCompanyList");
-        this.gettinParameterFromApi("Origen Base", "originBaseList");
-        this.gettinParameterFromApi("Oferta", "offerList");
-        this.gettingPhoneBlackList();
-        this.gettingMasterResumeAfterUploading();
+    resetScreen = () =>{
+        this.setState({
+            currentAction: "createDataBase",
+            progressValue: 0,
+            totalData: 0,
+            succesfulData: 0,
+            failedData: 0,
+            dataHeaders: [],
+            dataHeaders2: [],
+            dataList: [],
+            leadStatusList: [],
+            originList: [],
+            phoneBlackList: [],
+            controlPhoneList: [],
+            currentSession: null,
+            groupListStatus: {
+                groupList: [
+                    {
+                        fieldName: "Lista Negra",
+                        displayName: "Lista Negra",
+                        status: false,
+                        selected: 0,
+                    },
+                    {
+                        fieldName: "Registros Nuevos", 
+                        displayName: "Registros Nuevos", 
+                        status: false,
+                        selected: 0,
+                    },
+    
+                    {
+                        fieldName: "Ya Registrados",
+                        displayName: "Ya Registrados",
+                        status: false,
+                        selected: 0,
+                    }
+                ],
+                "Registros Nuevos": 0,
+                "Lista Negra": 0,
+                "Ya Registrados": 0,
+            },
+
+            //Parameters
+            campaignList: [],
+            originBaseList: [],
+            offerList: [],
+            phoneCompanyList: [],
+            actionButtonsCsv: "",
+
+            selectedCampaignList: null,
+            selectedOriginBaseList: null,
+            selectedOfferList: null,
+            selectedPhoneCompanyList: null,
+
+            //Accordion
+            expandedAccordion: false,
+            
+            uploadedInfoItems: 0,
+
+            page: 0,
+            rowsPerPage: 10,
+
+            //Cartera Data
+            dataBaseName: "",
+            dataBaseFileName: "",
+            dataBaseCsvFile: null,
+
+            //Lead Validation
+            validateWithLeads: false,
+
+            //Info To Upload
+            totalToUpLoad: 0,
+            selectedToUpload: 0,
+            itemsUploadedSuccessfully: 0,
+            itemsUploadedFailed: 0,
+
+            //master Resume
+            masterResume: null
+        });
+
+        this.onComponentDidMount();
     }
 
+    onComponentDidMount = () => {
+        const getSession = getSessionFromStorage();
+        if(getSession){
+            this.setState({currentSession: JSON.parse(getSession)});
+            this.getListStatusFromLeads();
+            this.gettinParameterFromApi("Campaña", "campaignList");
+            this.gettinParameterFromApi("Operadora", "phoneCompanyList");
+            this.gettinParameterFromApi("Origen Base", "originBaseList");
+            this.gettinParameterFromApi("Oferta", "offerList");
+            this.gettingPhoneBlackList();
+            //this.gettingMasterResumeAfterUploading();
+        }else{
+            this.logoutCurrentSession();
+        }
+    }
+
+    componentDidMount(){
+        this.onComponentDidMount();
+    }
+
+    logoutCurrentSession = () => {
+		localStorage.clear();
+		sessionStorage.clear();
+		this.props.history.push("/");
+	}
+
     componentDidUpdate(prevProps, prevState) {
-        if (prevState.uploadedInfoItems !== this.state.uploadedInfoItems && prevState.uploadedInfoItems < this.state.uploadedInfoItems) {
+        if (prevState.uploadedInfoItems !== this.state.uploadedInfoItems && ((prevState.uploadedInfoItems < this.state.uploadedInfoItems) || this.state.uploadedInfoItems === 0)){
             let currentProgress = ((100 * (parseFloat( this.state.uploadedInfoItems) + 1))/parseFloat(this.state.originList.length));
-            console.log("current: " + ( this.state.uploadedInfoItems + 1) + ", total: " + this.state.originList.length + ", %: " + currentProgress); 
             
             this.setState({
                 progressValue: currentProgress,
@@ -222,7 +325,9 @@ class CreateBaseScreen extends Component{
             }
             
             if(prevState.uploadedInfoItems < this.state.uploadedInfoItems && this.state.uploadedInfoItems >= this.state.originList.length && this.state.actionButtonsCsv === 'uploadingPortfolio'){
-                this.gettingMasterResumeAfterUploading();
+                if((this.state.itemsUploadedFailed + this.state.itemsUploadedSuccessfully) === this.state.selectedToUpload){
+                    this.gettingMasterResumeAfterUploading();
+                }
                 this.setState({
                     currentAction: "reportDataTable",
                     dataList: this.state.originList,
@@ -301,10 +406,6 @@ class CreateBaseScreen extends Component{
     }
 
     onCreateDataBaseClick = () => {
-        // if(this.state.dataBaseName.trim().length === 0){
-        //     swal("Ingrese nombre de Cartera.", {icon: "error"});
-        //     return;
-        // }
         var currentDate = new Date();
         let nombreCarteraAux = "cartera"+ " " + String(currentDate.getDate()).padStart(2, '0') + "-" +String(currentDate.getMonth() + 1).padStart(2, '0') + "-" + currentDate.getFullYear() + " " + currentDate.getHours() + ":" + currentDate.getMinutes() + ":" + currentDate.getSeconds();
 
@@ -397,6 +498,10 @@ class CreateBaseScreen extends Component{
         reader.readAsBinaryString(file);
     }
 
+    delayForRequest = (timePause) => {
+        return new Promise( res => setTimeout(res, timePause) );
+    }
+
     analizeCsvContent = async(dataString) => {
         const dataStringLines = dataString.split(/\r\n|\n/);
         const headers = dataStringLines[0].split(/,(?![^"]*"(?:(?:[^"]*"){2})*[^"]*$)/);
@@ -420,7 +525,7 @@ class CreateBaseScreen extends Component{
         }
         
         this.setState({
-            currentAction: "progressBar",
+            currentAction: "progressBar2",
             totalData: dataStringLines.length,
         });
 
@@ -459,13 +564,20 @@ class CreateBaseScreen extends Component{
         }
 
         let newGroupStatusList = this.state.groupListStatus;
-
-        
-
-        
-        await fetch("http://10.10.100.74/api/procedures/getmethods/SearchLeadList.php?token=fa1e8f63ff72cf10c9ec00b5b7506666&cellPhoneList="+listPhoneString)
-        .then(response => response.json())
-        .then(dataPhoneList => {
+        let urlApiToFecth = "http://solicitudes.claro.com.ec";
+        //let urlApiToFecth = "http://10.10.100.74"; 
+        await fetch(
+            urlApiToFecth + "/api/procedures/getmethods/SearchLeadList.php",
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: "fa1e8f63ff72cf10c9ec00b5b7506666",
+                    cellPhoneList: listPhoneString
+                })
+            }
+        ).then(async response => {
+            const dataPhoneList = await response.json();
             if(dataPhoneList.header === "OK"){
                 const currentPhoneBlackList = this.state.phoneBlackList;
                 let currentLeadStatusList = this.state.leadStatusList;
@@ -497,17 +609,36 @@ class CreateBaseScreen extends Component{
                             for(let indexType = 0; indexType < currentLeadStatusList.length; indexType++){
                                 let indexStatus = currentLeadStatusList[indexType].statusList.findIndex(currentStatus => currentStatus.estado_final === dataPhoneList.body[indexCategoryArray].leadStatus);
                                 if(indexStatus >= 0){
-                                    flagValue = false;
-                                    if(!currentLeadStatusList[indexType]["count"]){
-                                        currentLeadStatusList[indexType]["count"] = 0;
-                                    }
-                                    currentLeadStatusList[indexType].count = currentLeadStatusList[indexType].count + 1;
+                                    if(dataPhoneList.body[indexCategoryArray].leadStatus === "Solicitud Ingresada" && dataPhoneList.body[indexCategoryArray].requestStatus  !== "Solicitud Ingresada"){
+                                        let indexStatusForType = currentLeadStatusList[indexType].statusList.findIndex(currentStatus => currentStatus.estado_final === dataPhoneList.body[indexCategoryArray].requestTypeStatus);
+                                        if(indexStatusForType < 0){
+                                            currentLeadStatusList[indexType].statusList.push({
+                                                estado_final: dataPhoneList.body[indexCategoryArray].requestTypeStatus,
+                                                size: 0,
+                                                selected: 0,
+                                                status: false,
+                                            });
+                                            indexStatus =  currentLeadStatusList[indexType].statusList.length - 1;
+                                        }else{
+                                            indexStatus = indexStatusForType;
+                                        }
 
-                                    if(!currentLeadStatusList[indexType].statusList[indexStatus]["size"]){
-                                        currentLeadStatusList[indexType].statusList[indexStatus]["size"] = 0;
+                                        dataPhoneList.body[indexCategoryArray].leadStatus = dataPhoneList.body[indexCategoryArray].requestTypeStatus;
                                     }
 
-                                    currentLeadStatusList[indexType].statusList[indexStatus]["size"] = currentLeadStatusList[indexType].statusList[indexStatus]["size"] + 1;
+
+                                        flagValue = false;
+                                        if(!currentLeadStatusList[indexType]["count"]){
+                                            currentLeadStatusList[indexType]["count"] = 0;
+                                        }
+                                        
+                                        currentLeadStatusList[indexType].count = currentLeadStatusList[indexType].count + 1;
+
+                                        if(!currentLeadStatusList[indexType].statusList[indexStatus]["size"]){
+                                            currentLeadStatusList[indexType].statusList[indexStatus]["size"] = 0;
+                                        }
+
+                                        currentLeadStatusList[indexType].statusList[indexStatus]["size"] = currentLeadStatusList[indexType].statusList[indexStatus]["size"] + 1;
                                 }
                             }
 
@@ -552,13 +683,13 @@ class CreateBaseScreen extends Component{
                     groupListStatus: newGroupStatusList,
                     controlPhoneList: dataPhoneList,
                     totalToUpLoad: list.length,
+                    leadStatusList: currentLeadStatusList,
                 });
 
             }else{
                 swal("error", dataPhoneList.messgae, "error");   
             }
-        })
-        .catch(error => {
+        }).catch(error => {
             swal("error", "No se pudo conectar al hosting", "error");
         });
     }
@@ -579,7 +710,8 @@ class CreateBaseScreen extends Component{
             offerName: this.state.selectedOfferList.Name, 
             phoneCompany: this.state.selectedPhoneCompanyList.Name, 
             channelName: "Base de Datos", 
-            creatorIndex: 0
+            creatorIndex: this.state.currentSession.gestorId
+            //creatorIndex: 0
         };
 
         let list = this.state.originList;
@@ -589,9 +721,10 @@ class CreateBaseScreen extends Component{
             const dataCampaign = await response.json();
             if(dataCampaign.header === "OK" && dataCampaign.count === 1){
                 let currentLeadStatusList = this.state.leadStatusList;
+                let countRequest = 0;
+                const currentPhoneBlackList = this.state.phoneBlackList;
                 for(let indexList = 0; indexList < list.length; indexList++){
                     let flagSaveClientInfo = true;
-                    const currentPhoneBlackList = this.state.phoneBlackList;
                     let indexBlackList = currentPhoneBlackList.findIndex(currentBlackList => currentBlackList.phone === list[indexList]["CELULAR"]);
                     if(indexBlackList >= 0){
                         list[indexList]["action"] = 0;
@@ -642,6 +775,7 @@ class CreateBaseScreen extends Component{
                     }
 
                     if(flagSaveClientInfo){
+                        
                         this.setState({
                             uploadedInfoItems: this.state.uploadedInfoItems + 1,
                             originList: list
@@ -657,7 +791,8 @@ class CreateBaseScreen extends Component{
                             clientTariff: list[indexList]["TARIFA"], 
                             otherDatas: list[indexList]["OTROS"], 
                             anotherDatas: list[indexList]["OTROS1"], 
-                            creator: 0
+                            creator: this.state.currentSession.gestorId
+                            //creator: 0
                         };
 
                         postInformationIntoCampaign(requestData).then(async response => {
@@ -667,23 +802,35 @@ class CreateBaseScreen extends Component{
                                 list[indexList]["action"] = 1;
                                 list[indexList]["accion"] = "Información Ingresada";
                             }else{
+                                this.setState({itemsUploadedFailed: this.state.itemsUploadedFailed + 1});
                                 list[indexList]["action"] = 0;
                                 list[indexList]["accion"] = "No ingresado";
                                 list[indexList]["message"] = "No se pudo Ingresar el recurso. " + list[indexList]["message"];
                             }
-
                             this.setState({
                                 uploadedInfoItems: this.state.uploadedInfoItems + 1,
                                 originList: list
                             });
-                        }).catch(error => {
+
+                            countRequest = countRequest + 1;
+                            if(countRequest == 40){
+                                await this.delayForRequest(1500);
+                                countRequest = 0;
+                            }
+                        }).catch(async error => {
                             list[indexList]["action"] = 0;
                             list[indexList]["accion"] = "No ingresado";
                             list[indexList]["message"] = "Error al acceder a la api. " + list[indexList]["message"];
                             this.setState({
                                 uploadedInfoItems: this.state.uploadedInfoItems + 1,
-                                originList: list
+                                originList: list,
+                                itemsUploadedFailed: this.state.itemsUploadedFailed + 1,
                             });
+                            countRequest = countRequest + 1;
+                            if(countRequest == 40){
+                                await this.delayForRequest(1500);
+                                countRequest = 0;
+                            }
                         });
                     }else{
                         this.setState({
@@ -693,136 +840,13 @@ class CreateBaseScreen extends Component{
                     }
                 }
             }else{
-                swal("Error", dataCampaign.message, "error");
+                swal("Error 2", dataCampaign.message, "error");
             }
         })
         .catch(error => {
-            swal("Error", "No se pudo acceder al recurso remoto", "error");
+            swal("Error 1", "No se pudo acceder al recurso remoto", "error");
         });
     }
-
-
-    // doAfterAnalyze = () => {
-    
-    //     postCreateCampaign(requestOptions).then(async response => {
-    //         const dataCampaign = await response.json();
-    //         if(dataCampaign.header === "OK" && dataCampaign.count === 1){
-    //             let currentLeadStatusList = this.state.leadStatusList;
-    //             for(let indexList = 0; indexList < list.length; indexList++){
-    //                 const currentPhoneBlackList = this.state.phoneBlackList;
-    //                 let indexBlackList = currentPhoneBlackList.findIndex(currentBlackList => currentBlackList.phone === list[indexList]["CELULAR"]);
-    //                 if(indexBlackList >= 0){
-    //                     list[indexList]["action"] = 0;
-    //                     list[indexList]["accion"] = "No Ingresado";
-    //                     list[indexList]["message"] = "Número se encuentra en la lista Negra.";
-
-    //                     this.setState({
-    //                         uploadedInfoItems: this.state.uploadedInfoItems + 1,
-    //                         originList: list
-    //                     });
-    //                 }else{
-    //                     let indexCategoryArray = dataPhoneList.body.findIndex(currentBody => currentBody.number_assigned === list[indexList]["CELULAR"]);
-    //                     list[indexList]["action"] = 1;
-    //                     list[indexList]["accion"] = "Información Ingresada";
-                        
-    //                     let flagSaveClientInfo = true;
-    //                     let flagMessageCLientInfo = "No se encuentra en Master";
-    //                     list[indexList]["message"] = flagMessageCLientInfo;
-    //                     if(indexCategoryArray >= 0){
-    //                         flagSaveClientInfo = false;
-    //                         flagMessageCLientInfo = dataPhoneList.body[indexCategoryArray].number_assigned + " se encuentra registrado como lead con el estado " + dataPhoneList.body[indexCategoryArray].leadStatus + " y campaña " + dataPhoneList.body[indexCategoryArray].campaign;
-    //                         list[indexList]["action"] = 0;
-    //                         list[indexList]["accion"] = "No Ingresado";
-    //                         list[indexList]["message"] = flagMessageCLientInfo;
-
-    //                         for(let indexType = 0; indexType < currentLeadStatusList.length; indexType++){
-    //                             let indexStatus = currentLeadStatusList[indexType].statusList.findIndex(currentStatus => currentStatus.estado_final === dataPhoneList.body[indexCategoryArray].leadStatus);
-    //                             if(indexStatus >= 0){
-    //                                 if(currentLeadStatusList[indexType].statusList[indexStatus].status && this.state.validateWithLeads){
-    //                                     list[indexList]["action"] = 1;
-    //                                     list[indexList]["accion"] = "Información Ingresada";
-    //                                     list[indexList]["message"] = flagMessageCLientInfo;
-    //                                     flagSaveClientInfo = true;
-    //                                 }
-    //                                 break;
-    //                             }
-    //                         }
-    //                     }
-
-    //                     if(flagSaveClientInfo){
-    //                         const requestData = {
-    //                             token: ApiRest.apiToken,
-    //                             databaseName: this.state.dataBaseName, 
-    //                             clientIdentification: list[indexList]["IDENTIFICACION"], 
-    //                             clientName: list[indexList]["NOMBRE"], 
-    //                             clientPhone: list[indexList]["CELULAR"], 
-    //                             clientCity: list[indexList]["CIUDAD"], 
-    //                             clientTariff: list[indexList]["TARIFA"], 
-    //                             otherDatas: list[indexList]["OTROS"], 
-    //                             anotherDatas: list[indexList]["OTROS1"], 
-    //                             creator: 0
-    //                         };
-    //                         postInformationIntoCampaign(requestData).then(async response => {
-    //                             const data = await response.json();
-    //                             if(data.header === "OK" && data.count === 1){
-    //                                 list[indexList]["action"] = 1;
-    //                                 list[indexList]["accion"] = "Información Ingresada";
-    //                                 list[indexList]["message"] = flagMessageCLientInfo;
-    //                             }else{
-    //                                 list[indexList]["action"] = 0;
-    //                                 list[indexList]["accion"] = "No ingresado";
-    //                                 list[indexList]["message"] = "No se pudo Ingresar el recurso";
-    //                             }
-
-    //                             this.setState({
-    //                                 uploadedInfoItems: this.state.uploadedInfoItems + 1,
-    //                                 originList: list
-    //                             });
-    //                         }).catch(error => {
-    //                             list[indexList]["action"] = 0;
-    //                             list[indexList]["accion"] = "No ingresado";
-    //                             list[indexList]["message"] = "Error al acceder a la api.";
-    //                             this.setState({
-    //                                 uploadedInfoItems: this.state.uploadedInfoItems + 1,
-    //                                 originList: list
-    //                             });
-    //                         });
-    //                     }else{
-    //                         this.setState({
-    //                             uploadedInfoItems: this.state.uploadedInfoItems + 1,
-    //                             originList: list
-    //                         });
-    //                     }
-    //                 }
-    //             }
-
-    //             headers.push("accion");
-    //             headers.push("message");
-    
-    //             // prepare columns list from headers
-    //             const columns2 = headers.map(c => ({
-    //                 name: c,
-    //                 selector: c,
-    //             }));
-
-    //             headers.push("action");                
-    //             const columns = headers.map(c => ({
-    //                 name: c,
-    //                 selector: c,
-    //             }));
-
-    //             this.setState({
-    //                 dataHeaders: columns,
-    //                 dataHeaders2: columns2
-    //             });
-    //         }else{
-    //             swal("Error", dataCampaign.message, "error");
-    //         }
-    //     })
-    //     .catch(error => {
-    //         swal("Error", "No se pudo acceder al recurso remoto", "error");
-    //     });
-    // }
 
     onExpandAccordionEvent = (panel, nameFlagAccordion) => (event, isExpanded) => {
         this.setState({[nameFlagAccordion]: isExpanded ? panel : false});
@@ -1077,7 +1101,7 @@ class CreateBaseScreen extends Component{
                                             disabled = {this.state.groupListStatus[currentGroupStatus.fieldName] > 0 ? false : true }
                                         />
                                     }
-                                    label = {currentGroupStatus.displayName + " ( " + this.state.groupListStatus.groupList[indexGroupStatus].selected + " / " + this.state.groupListStatus[currentGroupStatus.fieldName] + " )"}
+                                    label = {<Typography style = {{fontWeight: "bold"}}>{currentGroupStatus.displayName + " ( " + this.state.groupListStatus.groupList[indexGroupStatus].selected + " / " + this.state.groupListStatus[currentGroupStatus.fieldName] + " )"}</Typography>}
                                 />
                             </CustomAccordionSummary>
 
@@ -1099,7 +1123,7 @@ class CreateBaseScreen extends Component{
                                                         disabled = {currentType.count > 0 ? false : true }
                                                     />
                                                 }
-                                                label = {currentType.tipo_llamada + " ( " + this.state.leadStatusList[indexType].selected  + " / " + currentType.count + " )"}
+                                                label = {<Typography  style = {{fontWeight: "bold", fontSize: "15px"}}>{currentType.tipo_llamada + " ( " + this.state.leadStatusList[indexType].selected  + " / " + currentType.count + " )"}</Typography>}
                                             />
                                         </CustomAccordionSummary>
 
@@ -1125,7 +1149,7 @@ class CreateBaseScreen extends Component{
                                             disabled = {this.state.groupListStatus[currentGroupStatus.fieldName] > 0 ? false : true }
                                         />
                                     }
-                                    label = {currentGroupStatus.displayName + " (" + this.state.groupListStatus[currentGroupStatus.fieldName] + ")"}
+                                    label = {<Typography style = {{fontWeight: "bold"}}>{currentGroupStatus.displayName + " (" + this.state.groupListStatus[currentGroupStatus.fieldName] + ")"}</Typography>}
                                 />
                             </CustomAccordionSummary>
                         </Accordion>
@@ -1133,12 +1157,12 @@ class CreateBaseScreen extends Component{
 
                 <div style = {{width: "100%", display: "flex", marginTop: "10px", flexDirection: "row"}}>
                     <div style = {{display: "flex", flexDirection: "row"}}>
-                        <Typography style = {{fontWeight: "bold", fontSize: "0.8vw"}}>Total: </Typography>
-                        <Typography style = {{marginLeft: "20px", fontSize: "0.8vw"}}>{this.state.totalToUpLoad + ","}</Typography>
+                        <Typography style = {{fontWeight: "bold", fontSize: "13px"}}>Total: </Typography>
+                        <Typography style = {{marginLeft: "20px", fontSize: "13px"}}>{this.state.totalToUpLoad + ","}</Typography>
                     </div>
                     <div style = {{display: "flex", flexDirection: "row", marginLeft: "30px", flex: 1}}>
-                        <Typography style = {{fontWeight: "bold", fontSize: "0.8vw"}}>Listos para subir: </Typography>
-                        <Typography style = {{marginLeft: "20px", fontSize: "0.8vw"}}>{this.state.selectedToUpload}</Typography>
+                        <Typography style = {{fontWeight: "bold", fontSize: "13px"}}>Listos para subir: </Typography>
+                        <Typography style = {{marginLeft: "20px", fontSize: "13px"}}>{this.state.selectedToUpload}</Typography>
                     </div>
 
                     {this.state.selectedToUpload > 0 ?
@@ -1192,7 +1216,7 @@ class CreateBaseScreen extends Component{
                                 disabled = {statusArrayList[index].size > 0 ? false : true }
                             />
                         }
-                        label = {statusArrayList[index].estado_final + " (" + statusArrayList[index].size + " )"}
+                        label = {<Typography style = {{fontSize: "12px"}}>{statusArrayList[index].estado_final + " (" + statusArrayList[index].size + " )"}</Typography>}
                     />
                 );
             }
@@ -1281,7 +1305,15 @@ class CreateBaseScreen extends Component{
     renderProgressBar = (classes) => {
         return(
             <div style = {{height: "100%", display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center"}}>
-                <CircularProgressWithLabel value = {this.state.progressValue} />
+                <CircularProgress style = {{height: "150px", width: "150px"}} color="black" />
+            </div>
+        );
+    }
+
+    renderCircularProgressBar = (classes) => {
+        return(
+            <div style = {{height: "100%", display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center"}}>
+                <CircularProgress style = {{height: "150px", width: "150px"}} color="black" />
             </div>
         );
     }
@@ -1296,8 +1328,6 @@ class CreateBaseScreen extends Component{
                 </div>
                 {this.state.masterResume !== null ?
                     <div style = {{width: "600px", display: "flex", flexDirection: "column", marginTop: "20px"}}> 
-                       
-
                         {this.state.masterResume.comesFromResume.map((comesFrom, index) => (
                             <div style = {{display: "flex", flexDirection: "column", width: "100%", marginTop: "15px"}}>
                                 <div style = {{display: "flex", flexDirection: "row", width: "100%"}}>
@@ -1330,6 +1360,17 @@ class CreateBaseScreen extends Component{
                                 ))}
                             </div>
                         </div>
+                        <Button
+                            variant = "contained"
+                            component = "span"
+                            size = "small"
+                            onClick = {this.resetScreen}
+                            style = {{marginTop: "80px", marginLeft: "auto", marginRight: "auto", color: "white", backgroundColor: "black"}}
+                            className = {classes.uploadFileButton}
+                            startIcon = {<CloudUploadIcon />}
+                        >
+                            Subir Base Nuevamente
+                        </Button>
                     </div>
                 : null}
                 
@@ -1351,6 +1392,12 @@ class CreateBaseScreen extends Component{
                         {this.renderProgressBar(classes)}
                     </div>
                 );
+            case "progressBar2":
+                return (
+                    <div style = {{height: "88vh"}}>
+                        {this.renderCircularProgressBar(classes)}
+                    </div>
+                );
             case "reportMatching": 
                 return(
                     this.renderFilterLeads(classes)
@@ -1358,9 +1405,6 @@ class CreateBaseScreen extends Component{
             case "reportDataTable":
                 return (
                     this.renderMasterResume(classes)
-                    // <div>
-                    //     {this.renderDataTable(classes)}
-                    // </div>
                 );
             default:
                 return null;
@@ -1371,7 +1415,7 @@ class CreateBaseScreen extends Component{
         const { classes } = this.props;
         return(
             <div>
-                {this.state.leadStatusList.length > 0 ? 
+                {this.state.leadStatusList.length > 0 && this.state.currentSession !== null ? 
                     this.renderCurrentView(this.state.currentAction, classes)
                 : null}
             </div>
