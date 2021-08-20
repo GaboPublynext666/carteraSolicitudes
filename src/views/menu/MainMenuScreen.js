@@ -39,6 +39,7 @@ import {MenuStyles} from "./MenuStyles";
 //Modules
 import CreateBaseScreen from "./createBase/CreateBaseScreen";
 import ResumeMasterScreen from "./resumeMaster/ResumeMasterScreen";
+import UploadAprovementBaseScreen from "./uploadAprovementBase/UploadAprovementBaseScreen";
 
 import {getSessionFromStorage} from "../../generalMethods/generalMethods";
 
@@ -158,6 +159,7 @@ class MainMenuScreen extends Component{
                <Switch>			
                   <Route path = "/menu/create-base" exact component = {CreateBaseScreen}/>
                   <Route path = "/menu/resume-master" exact component = {ResumeMasterScreen}/>
+                  <Route path = "/menu/base-to-aprove" exact component = {UploadAprovementBaseScreen}/>
                </Switch>
             </main>
          </div>

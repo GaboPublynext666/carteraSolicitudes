@@ -21,3 +21,30 @@ export const DataBaseItems = ([
         name: "OTROS1",
     },
 ]);
+
+export const AproveDataBaseItems = ([
+    {
+        name: "CELULAR",
+    },
+    {
+        name: "CLIENTE"
+    },
+    {
+        name: "IDENTIFICACION"
+    },
+    {
+        name: "CLIENTE_TIPO",
+    },
+    {
+        name: "PLAN",
+    },
+    {
+        name: "TARIFA_BASICA",
+    },
+    {
+        name: "FECHA_ALTA",
+    },
+    {
+        name: "CIUDAD",
+    },
+]);

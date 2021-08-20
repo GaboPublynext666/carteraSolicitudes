@@ -24,3 +24,11 @@ export const postInformationIntoCampaign = async(postData) => await fetch(ApiRes
       body: JSON.stringify(postData)
    }
 );
+
+export const postInformationIntoAprovementDb = async(postData) => await fetch(ApiRest.apiHost + ApiRest.postInformationIntoAprovementDb, 
+   {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(postData)
+   }
+);

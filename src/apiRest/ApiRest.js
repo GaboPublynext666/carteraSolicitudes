@@ -8,4 +8,5 @@ export const ApiRest = ({
    //Post Methods
    postCreateCampaign: "/postmethods/CreateCampaign.php",
    postInformationIntoCampaign: "/postmethods/SaveInformatIonIntoCampaign.php",
+   postInformationIntoAprovementDb: "/postmethods/aprovementBase/saveAprovementBase.php",
 });
