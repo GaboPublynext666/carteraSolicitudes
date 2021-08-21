@@ -340,8 +340,8 @@ class UploadAprovementBaseScreen extends Component{
                clientTariff: listData[indexList]["TARIFA_BASICA"], 
                dischargeDate: listData[indexList]["FECHA_ALTA"], 
                clientCity: listData[indexList]["CIUDAD"], 
-               //created_by: this.state.currentSession.gestorId
-               created_by: 0
+               created_by: this.state.currentSession.gestorId
+               //created_by: 0
             };
 
             postInformationIntoAprovementDb(requestData).then(async response => {
