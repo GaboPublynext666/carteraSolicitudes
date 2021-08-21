@@ -25,6 +25,22 @@ export const postInformationIntoCampaign = async(postData) => await fetch(ApiRes
    }
 );
 
+export const getStatusList = async(postData) => await fetch(ApiRest.apiHost + ApiRest.getStatusList, 
+   {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(postData)
+   }
+);
+
+export const getMatchingAprovementBase = async(postData) => await fetch(ApiRest.apiHost + ApiRest.getMatchingAprovementBase, 
+   {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(postData)
+   }
+);
+
 export const postInformationIntoAprovementDb = async(postData) => await fetch(ApiRest.apiHost + ApiRest.postInformationIntoAprovementDb, 
    {
       method: 'POST',
